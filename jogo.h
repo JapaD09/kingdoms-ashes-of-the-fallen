@@ -11,12 +11,9 @@ struct Jogo {
     Reino reino;
 };
 
-// Le um numero entre minimo e maximo; insiste ate vir algo valido
-int lerOpcao(int minimo, int maximo);
-
-void pausar();
-
 void iniciarJogo(Jogo& jogo);
-void loopPrincipal(Jogo& jogo);
+
+// Avanca o reino um turno e devolve um resumo pra mostrar na tela
+std::string encerrarTurno(Jogo& jogo);
 
 #endif

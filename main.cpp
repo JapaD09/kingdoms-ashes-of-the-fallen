@@ -2,16 +2,19 @@
 // Projeto Final - Programacao e Sistemas Computacionais II
 // Eduarda e Mateus
 
-#include <cstdlib>
-#include <ctime>
 #include "jogo.h"
+#include "interface.h"
 
 int main() {
-    srand(static_cast<unsigned>(time(nullptr)));
-
     Jogo jogo;
     iniciarJogo(jogo);
-    loopPrincipal(jogo);
+
+    abrirJanela();
+    while (janelaAberta() && jogo.rodando) {
+        atualizarInterface(jogo);
+        desenharInterface(jogo);
+    }
+    fecharJanela();
 
     return 0;
 }
