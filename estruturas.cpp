@@ -48,6 +48,13 @@ const Edificio* buscarEdificioNoLote(const ListaEdificios& lista, int linha, int
     return nullptr;
 }
 
+Edificio* acharEdificio(ListaEdificios& lista, int id) {
+    for (NoEdificio* no = lista.primeiro; no != nullptr; no = no->proximo) {
+        if (no->dados.id == id) return &no->dados;
+    }
+    return nullptr;
+}
+
 int contarEdificiosDoTipo(const ListaEdificios& lista, int tipo) {
     int total = 0;
     for (NoEdificio* no = lista.primeiro; no != nullptr; no = no->proximo) {
@@ -102,6 +109,32 @@ bool pilhaVazia(const PilhaAcoes& pilha) {
 void limparPilha(PilhaAcoes& pilha) {
     Acao lixo;
     while (desempilhar(pilha, lixo)) {
+    }
+}
+
+// pilha de cartas (mesma ideia da pilha de ações)
+
+void colocarCarta(PilhaCartas& pilha, int carta) {
+    NoCarta* novo = new NoCarta;
+    novo->carta = carta;
+    novo->abaixo = pilha.topo;
+    pilha.topo = novo;
+    pilha.tamanho++;
+}
+
+bool tirarCarta(PilhaCartas& pilha, int& carta) {
+    if (pilha.topo == nullptr) return false;
+    NoCarta* velho = pilha.topo;
+    carta = velho->carta;
+    pilha.topo = velho->abaixo;
+    delete velho;
+    pilha.tamanho--;
+    return true;
+}
+
+void limparCartas(PilhaCartas& pilha) {
+    int lixo;
+    while (tirarCarta(pilha, lixo)) {
     }
 }
 

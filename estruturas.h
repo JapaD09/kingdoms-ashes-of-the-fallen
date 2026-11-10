@@ -12,6 +12,10 @@ struct Edificio {
     int tipo = 0;
     int linha = 0;
     int coluna = 0;
+    int nivel = 1;          // sobe jogando a mesma carta em cima (máx 3)
+    int bonusAtaque = 0;    // encantos nas tropas desse prédio
+    int bonusVida = 0;
+    int bonusTropas = 0;
 };
 
 struct NoEdificio {
@@ -34,6 +38,9 @@ bool removerEdificio(ListaEdificios& lista, int id);
 // nullptr se o lote está vazio
 const Edificio* buscarEdificioNoLote(const ListaEdificios& lista, int linha, int coluna);
 
+// versão que deixa alterar (nível, encantos)
+Edificio* acharEdificio(ListaEdificios& lista, int id);
+
 int contarEdificiosDoTipo(const ListaEdificios& lista, int tipo);
 
 // chamar antes de sair ou reiniciar
@@ -41,12 +48,13 @@ void liberarEdificios(ListaEdificios& lista);
 
 // Pilha de ações do turno (R6) - LIFO, serve pro "desfazer"
 
-enum TipoAcao { CONSTRUIU, DEMOLIU };
+enum TipoAcao { CONSTRUIU, DEMOLIU, MELHOROU, EXPANDIU, USOU_CARTA };
 
 struct Acao {
     int tipo = CONSTRUIU;
-    Edificio edificio;     // o que foi construído ou demolido
+    Edificio edificio;     // construído, demolido ou como era antes de melhorar
     int ouroDevolvido = 0; // só na demolição
+    int carta = -1;        // carta gasta (volta pra mão se desfizer)
 };
 
 struct NoPilha {
@@ -90,6 +98,23 @@ const OrdemConstrucao* frenteDaFila(const FilaConstrucao& fila);
 bool filaVazia(const FilaConstrucao& fila);
 bool loteNaFila(const FilaConstrucao& fila, int linha, int coluna);
 void limparFila(FilaConstrucao& fila);
+
+// Pilha de cartas (R6 de novo): o monte de compra e o descarte.
+// Compra sempre do topo, como num baralho de verdade.
+
+struct NoCarta {
+    int carta = 0;
+    NoCarta* abaixo = nullptr;
+};
+
+struct PilhaCartas {
+    NoCarta* topo = nullptr;
+    int tamanho = 0;
+};
+
+void colocarCarta(PilhaCartas& pilha, int carta);
+bool tirarCarta(PilhaCartas& pilha, int& carta);   // false se vazia
+void limparCartas(PilhaCartas& pilha);
 
 // Árvore binária de busca do catálogo (R8), organizada pelo id
 // menor id vai pra esquerda, maior pra direita

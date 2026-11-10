@@ -1,11 +1,16 @@
 #include "jogo.h"
+#include "aleatorio.h"
 
 using namespace std;
 
-void iniciarJogo(Jogo& jogo) {
+void iniciarJogo(Jogo& jogo, unsigned semente) {
+    semearAleatorio(semente);
     jogo.turno = 1;
     jogo.rodando = true;
+    jogo.derrota = false;
+    jogo.emBatalha = false;
     iniciarReino(jogo.reino);
+    sortearOrdemDosReinos(jogo.ordemInimigos);
     liberarArvore(jogo.catalogo);
     montarCatalogo(jogo.catalogo);
 }
@@ -29,10 +34,33 @@ void montarCatalogo(NoArvore*& catalogo) {
     for (const Item& item : itens) inserirItem(catalogo, item);
 }
 
+int reinoDaVez(const Jogo& jogo) {
+    return jogo.ordemInimigos[(jogo.turno - 1) % TOTAL_REINOS];
+}
+
 string encerrarTurno(Jogo& jogo) {
+    if (jogo.emBatalha || jogo.derrota) return "";
     string resumo = processarTurnoReino(jogo.reino);
     string fila = processarFila(jogo.reino);
+    montarBatalha(jogo.batalha, jogo.reino, reinoDaVez(jogo), jogo.turno);
+    jogo.emBatalha = true;
+    return fila.empty() ? resumo : resumo + "  " + fila;
+}
+
+string concluirBatalha(Jogo& jogo) {
+    if (!jogo.emBatalha) return "";
+    while (!jogo.batalha.acabou) rodadaDeBatalha(jogo.batalha);   // se pulou a animação
+    string resultado = aplicarResultado(jogo.batalha, jogo.reino);
+    jogo.emBatalha = false;
+
+    if (jogo.reino.vidaCastelo <= 0) {
+        jogo.derrota = true;
+        return resultado;
+    }
+    descartarTudo(jogo.reino.baralho);
+    comprarMao(jogo.reino.baralho);
     jogo.turno++;
-    string texto = "Turno " + to_string(jogo.turno) + ": " + resumo;
-    return fila.empty() ? texto : texto + "  " + fila;
+    // fechou a volta nos 6 reinos: sorteia outra ordem
+    if ((jogo.turno - 1) % TOTAL_REINOS == 0) sortearOrdemDosReinos(jogo.ordemInimigos);
+    return resultado;
 }
