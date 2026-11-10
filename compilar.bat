@@ -7,9 +7,10 @@ set RAYLIB=C:\raylib\raylib\src
 set PATH=C:\raylib\w64devkit\bin;%PATH%
 
 g++ -std=c++17 -Wall -Wextra ^
-    main.cpp jogo.cpp interface.cpp natureza.cpp visao3d.cpp fonte.cpp sprites.cpp reino.cpp ^
-    expedicao.cpp ^
-    combate.cpp estruturas.cpp algoritmos.cpp ^
+    main.cpp jogo.cpp interface.cpp ui.cpp tela_batalha.cpp tela_herois.cpp figuras.cpp ^
+    natureza.cpp visao3d.cpp fonte.cpp sprites.cpp ^
+    reino.cpp cartas.cpp herois.cpp inimigos.cpp combate.cpp expedicao.cpp ^
+    estruturas.cpp algoritmos.cpp aleatorio.cpp ^
     -o kingdoms.exe -I%RAYLIB% -L%RAYLIB% ^
     -lraylib -lopengl32 -lgdi32 -lwinmm
 
