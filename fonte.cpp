@@ -2,11 +2,10 @@
 
 namespace {
 
-const int ALTURA_GLIFO = 9;    // 7 de altura + 2 pra "perna" do g, p, q, y
+const int ALTURA_GLIFO = 9;    // 7 + 2 pro g, p, q, y
 const int ALTURA_LINHA = 11;
 
-// Cada letra é um desenho de até 5 colunas por 9 linhas. '#' = pixel aceso.
-// Linhas que faltam no fim ficam vazias.
+// cada letra: 5x9, '#' = pixel aceso
 struct Glifo {
     char letra;
     const char* linhas[ALTURA_GLIFO];
@@ -96,9 +95,9 @@ const int TOTAL_GLIFOS = sizeof(GLIFOS) / sizeof(GLIFOS[0]);
 
 enum Acento { NENHUM, AGUDO, CRASE, CIRCUNFLEXO, TIL, CEDILHA };
 
-// letra acentuada = letra normal + acento desenhado por cima (ou cedilha embaixo)
+// letra + acento
 struct LetraAcentuada {
-    int codigo;      // código Unicode (Latin-1)
+    int codigo;
     char base;
     Acento acento;
 };
@@ -128,8 +127,7 @@ const Glifo* acharGlifo(char letra) {
     return nullptr;
 }
 
-// Lê um caractere UTF-8 e avança o ponteiro.
-// Só precisamos de ASCII e das letras acentuadas (2 bytes); o resto vira '?'.
+// lê um caractere UTF-8
 int lerCodigo(const char*& p) {
     unsigned char c = static_cast<unsigned char>(*p++);
     if (c < 0x80) return c;
@@ -170,7 +168,7 @@ int larguraGlifo(const Glifo* g) {
 }
 
 void desenharGlifo(const Letra& letra, int x, int y, int e, Color cima, Color baixo) {
-    bool semPingo = letra.base == 'i' && letra.acento != NENHUM;   // "í" perde o pingo
+    bool semPingo = letra.base == 'i' && letra.acento != NENHUM;
     for (int l = 0; l < ALTURA_GLIFO; l++) {
         const char* linha = letra.glifo->linhas[l];
         if (linha == nullptr || (semPingo && l == 0)) continue;
@@ -217,7 +215,7 @@ void desenharDuasCores(const char* texto, int x, int y, int e, Color cima, Color
     }
 }
 
-}  // namespace
+}
 
 int larguraTexto(const char* texto, int escala) {
     int maior = 0, atual = 0;
@@ -251,6 +249,6 @@ void desenharTextoContorno(const char* texto, int x, int y, int escala,
             desenharDuasCores(texto, x + dx * escala, y + dy * escala, escala, contorno, contorno);
         }
     }
-    desenharDuasCores(texto, x, y + 2 * escala, escala, contorno, contorno);   // sombra embaixo
+    desenharDuasCores(texto, x, y + 2 * escala, escala, contorno, contorno);
     desenharDuasCores(texto, x, y, escala, cima, baixo);
 }

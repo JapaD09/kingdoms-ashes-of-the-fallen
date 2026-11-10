@@ -5,8 +5,7 @@ using namespace std;
 
 namespace {
 
-// Valores iniciais de balanceamento (guia, seção 4). Vamos ajustando jogando.
-//                    nome         custo {ouro, madeira, pedra, comida, ferro}   produção          defesa
+// nome, custo, produção por turno, defesa
 const ModeloEdificio MODELOS[TOTAL_TIPOS_EDIFICIO] = {
     {"Fazenda",  {30, 20, 0, 0, 0},  {0, 0, 0, 8, 0}, 0},
     {"Serraria", {35, 15, 0, 0, 0},  {0, 6, 0, 0, 0}, 0},
@@ -15,9 +14,9 @@ const ModeloEdificio MODELOS[TOTAL_TIPOS_EDIFICIO] = {
     {"Oficina",  {45, 20, 0, 0, 15}, {0, 0, 0, 0, 0}, 0},
 };
 
-const int HABITANTES_POR_COMIDA = 5;   // 1 de comida pra cada 5 habitantes
-const int SOLDADOS_POR_COMIDA = 3;     // 1 de comida pra cada 3 soldados
-const int HABITANTES_POR_OURO = 2;     // imposto: 1 de ouro pra cada 2 habitantes
+const int HABITANTES_POR_COMIDA = 5;
+const int SOLDADOS_POR_COMIDA = 3;
+const int HABITANTES_POR_OURO = 2;   // imposto
 
 void somar(Recursos& destino, const Recursos& valor, int vezes = 1) {
     destino.ouro += valor.ouro * vezes;
@@ -31,14 +30,14 @@ int consumoDeComida(const Reino& reino) {
     return reino.populacao / HABITANTES_POR_COMIDA + reino.soldados / SOLDADOS_POR_COMIDA;
 }
 
-// monta "ouro +10" e junta no texto, pulando o que não mudou
+// ex: "ouro +10"
 void anotar(string& texto, const char* nome, int valor) {
     if (valor == 0) return;
     if (!texto.empty()) texto += "  ";
     texto += string(nome) + (valor > 0 ? " +" : " ") + to_string(valor);
 }
 
-// Se a comida ficou negativa, zera e parte do povo vai embora
+// sem comida, o povo vai embora
 string aplicarFome(Reino& reino) {
     if (reino.estoque.comida >= 0) return "";
     int falta = -reino.estoque.comida;
@@ -50,7 +49,7 @@ string aplicarFome(Reino& reino) {
     return "Faltou comida! " + to_string(foramEmbora) + " pessoas foram embora.";
 }
 
-}  // namespace
+}
 
 void iniciarReino(Reino& reino) {
     reino.estoque = {100, 60, 30, 80, 10};
@@ -58,7 +57,7 @@ void iniciarReino(Reino& reino) {
     reino.soldados = 6;
     reino.defesa = 0;
     reino.proximoIdEdificio = 1;
-    liberarEdificios(reino.edificios);   // se for um reinício, limpa a lista antiga
+    liberarEdificios(reino.edificios);
 }
 
 void liberarReino(Reino& reino) {
@@ -101,7 +100,7 @@ string construirEdificio(Reino& reino, int tipo, int linha, int coluna) {
     if (!problema.empty()) return problema;
 
     const ModeloEdificio& modelo = MODELOS[tipo];
-    somar(reino.estoque, modelo.custo, -1);    // cobra uma vez só
+    somar(reino.estoque, modelo.custo, -1);
     reino.defesa += modelo.defesa;
 
     Edificio novo;
@@ -113,7 +112,7 @@ string construirEdificio(Reino& reino, int tipo, int linha, int coluna) {
     return "Nova construção: " + string(modelo.nome) + ".";
 }
 
-// Demolir devolve metade do ouro gasto
+// devolve metade do ouro
 string demolirEdificio(Reino& reino, int linha, int coluna) {
     const Edificio* alvo = buscarEdificioNoLote(reino.edificios, linha, coluna);
     if (alvo == nullptr) return "Não tem nada pra demolir aqui.";
@@ -124,11 +123,11 @@ string demolirEdificio(Reino& reino, int linha, int coluna) {
     reino.defesa -= modelo.defesa;
 
     string nome = modelo.nome;
-    removerEdificio(reino.edificios, alvo->id);   // depois daqui "alvo" não vale mais
+    removerEdificio(reino.edificios, alvo->id);
     return "Demolição: " + nome + ". Voltaram " + to_string(reembolso) + " de ouro.";
 }
 
-// Percorre a lista somando a produção de cada edifício
+// soma a produção de todos os edifícios
 Recursos previsaoDoTurno(const Reino& reino) {
     Recursos total;
     for (NoEdificio* no = reino.edificios.primeiro; no != nullptr; no = no->proximo) {

@@ -3,7 +3,7 @@
 
 #include "raylib.h"
 
-// Cores usadas em todo o visual do jogo. Mudar aqui muda no jogo inteiro.
+// Cores do jogo
 
 const Color FUNDO          = {34, 52, 44, 255};
 const Color FUNDO_PONTO    = {46, 68, 56, 255};

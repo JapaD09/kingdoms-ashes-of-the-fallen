@@ -2,21 +2,19 @@
 #include "paleta.h"
 #include <cmath>
 
-// Atalho: (a, b) é a posição dentro do desenho, multiplicada pelo tamanho do pixel.
+// desenha um retângulo dentro do sprite
 #define PX(a, b, w, h, cor) DrawRectangle(x + (a) * s, y + (b) * s, (w) * s, (h) * s, cor)
 
 static int piscada(float velocidade) {
     return static_cast<int>(GetTime() * velocidade) % 2;
 }
 
-// ---------------- construções ----------------
-
 void desenharCastelo(int x, int y, int s) {
     PX(3, 10, 16, 11, PEDRA);
     for (int i = 3; i < 19; i += 3) PX(i, 9, 2, 1, PEDRA);
     PX(1, 6, 5, 15, PEDRA_CLARA);
     PX(16, 6, 5, 15, PEDRA_CLARA);
-    PX(5, 6, 1, 15, PEDRA);                  // sombrinha nas torres
+    PX(5, 6, 1, 15, PEDRA);
     PX(20, 6, 1, 15, PEDRA);
     PX(1, 4, 5, 2, TELHADO_AZUL);
     PX(2, 2, 3, 2, TELHADO_AZUL);
@@ -26,7 +24,7 @@ void desenharCastelo(int x, int y, int s) {
     PX(8, 2, 6, 2, TELHADO_VERM);
     PX(9, 0, 4, 2, TELHADO_VERM);
     PX(11, -4, 1, 4, CONTORNO);              // mastro
-    PX(12, -4, 3, 2, TELHADO_VERM);          // bandeira balançando
+    PX(12, -4, 3, 2, TELHADO_VERM);          // bandeira
     PX(15, -4 + piscada(3.0f), 1, 1, TELHADO_VERM);
     PX(10, 16, 2, 5, CONTORNO);              // portão
     PX(10, 7, 2, 2, JANELA);
@@ -37,7 +35,7 @@ void desenharCastelo(int x, int y, int s) {
 void desenharFazenda(int x, int y, int s) {
     PX(2, 4, 18, 15, TERRA);
     for (int i = 6; i < 19; i += 4) {
-        PX(3, i, 16, 1, GRAMA_CLARA);        // fileiras da plantação
+        PX(3, i, 16, 1, GRAMA_CLARA);
         PX(4, i - 1, 1, 1, DOURADO);
         PX(10, i - 1, 1, 1, DOURADO);
         PX(16, i - 1, 1, 1, DOURADO);
@@ -50,7 +48,7 @@ void desenharSerraria(int x, int y, int s) {
     PX(2, 6, 14, 3, TELHADO_VERM);
     PX(4, 4, 10, 2, TELHADO_VERM);
     PX(8, 13, 3, 5, MADEIRA_ESCURA);
-    PX(14, 15, 7, 3, MADEIRA);               // pilha de toras
+    PX(14, 15, 7, 3, MADEIRA);               // toras
     PX(15, 12, 5, 3, MADEIRA);
     PX(20, 15, 1, 3, PERGAMINHO);
     PX(19, 12, 1, 3, PERGAMINHO);
@@ -88,7 +86,7 @@ void desenharOficina(int x, int y, int s) {
 }
 
 void desenharArvore(int x, int y, int s) {
-    PX(1, 9, 6, 1, Fade(CONTORNO, 0.35f));   // sombra no chão
+    PX(1, 9, 6, 1, Fade(CONTORNO, 0.35f));   // sombra
     PX(3, 6, 1, 3, MADEIRA_ESCURA);
     PX(1, 2, 5, 4, FOLHA);
     PX(0, 3, 7, 2, FOLHA);
@@ -96,7 +94,7 @@ void desenharArvore(int x, int y, int s) {
     PX(2, 1, 2, 2, FOLHA_CLARA);
 }
 
-// ---------------- ícones ----------------
+// ícones
 
 void iconeOuro(int x, int y, int s) {
     PX(1, 0, 5, 7, DOURADO_ESCURO);

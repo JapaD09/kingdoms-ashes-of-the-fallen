@@ -3,8 +3,7 @@
 
 #include "jogo.h"
 
-// Janela do jogo (raylib). Aqui só tem desenho e leitura de mouse/teclado;
-// as regras continuam em jogo.cpp e reino.cpp.
+// Janela do jogo (raylib)
 
 void abrirJanela();
 bool janelaAberta();

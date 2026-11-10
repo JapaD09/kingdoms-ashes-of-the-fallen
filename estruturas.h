@@ -1,12 +1,10 @@
 #ifndef ESTRUTURAS_H
 #define ESTRUTURAS_H
 
-// Estruturas de dados feitas na mão (R5 a R8), com new e delete.
-// Nada de std::list / std::stack / std::queue aqui, a disciplina pede manual.
+// Estruturas feitas na mão, com new e delete.
 
-// ---------------- R5: lista encadeada de edifícios ----------------
+// Lista encadeada de edifícios (R5)
 
-// Um edifício construído no reino. O "tipo" aponta pro catálogo em reino.cpp.
 struct Edificio {
     int id = 0;
     int tipo = 0;
@@ -19,8 +17,7 @@ struct NoEdificio {
     NoEdificio* proximo = nullptr;
 };
 
-// Guardamos o último nó também, assim inserir no fim é O(1)
-// e a lista fica na ordem em que as coisas foram construídas.
+// guarda o último pra inserir no fim
 struct ListaEdificios {
     NoEdificio* primeiro = nullptr;
     NoEdificio* ultimo = nullptr;
@@ -29,15 +26,15 @@ struct ListaEdificios {
 
 void inserirEdificio(ListaEdificios& lista, const Edificio& edificio);
 
-// Remove pelo id. Devolve false se não achou (lista vazia ou id inexistente).
+// false se não achou
 bool removerEdificio(ListaEdificios& lista, int id);
 
-// Percorre a lista procurando quem está naquele lote. nullptr se o lote está vazio.
+// nullptr se o lote está vazio
 const Edificio* buscarEdificioNoLote(const ListaEdificios& lista, int linha, int coluna);
 
 int contarEdificiosDoTipo(const ListaEdificios& lista, int tipo);
 
-// Apaga todos os nós. Tem que ser chamada antes de fechar ou reiniciar o jogo.
+// chamar antes de sair ou reiniciar
 void liberarEdificios(ListaEdificios& lista);
 
 #endif

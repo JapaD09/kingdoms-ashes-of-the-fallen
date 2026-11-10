@@ -1,12 +1,11 @@
 #ifndef SPRITES_H
 #define SPRITES_H
 
-// Sprites em pixel art, feitos só com retângulos (nada de arquivo de imagem).
-// (x, y) = canto de cima à esquerda; s = tamanho de cada "pixel" do desenho.
+// Desenhos em pixel art. s = tamanho do pixel.
 
 typedef void (*Desenho)(int x, int y, int s);
 
-// construções: ocupam um lote de 22x22
+// construções (22x22)
 void desenharCastelo(int x, int y, int s);
 void desenharFazenda(int x, int y, int s);
 void desenharSerraria(int x, int y, int s);
@@ -14,10 +13,9 @@ void desenharQuartel(int x, int y, int s);
 void desenharMuralha(int x, int y, int s);
 void desenharOficina(int x, int y, int s);
 
-// árvore de 7x9
 void desenharArvore(int x, int y, int s);
 
-// ícones de 7x7
+// ícones (7x7)
 void iconeOuro(int x, int y, int s);
 void iconeMadeira(int x, int y, int s);
 void iconePedra(int x, int y, int s);

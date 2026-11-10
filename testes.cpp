@@ -1,8 +1,5 @@
-// Testes da lógica do reino e da lista encadeada (sem janela).
-// Compilar e rodar:
-//   g++ -std=c++17 -Wall -Wextra testes.cpp reino.cpp estruturas.cpp -o testes
-//   ./testes
-// Dá pra rodar com -fsanitize=address pra conferir vazamento de memória.
+// Testes do reino e da lista (sem janela)
+// g++ -std=c++17 testes.cpp reino.cpp estruturas.cpp -o testes
 
 #include <iostream>
 #include <string>
@@ -55,7 +52,7 @@ static void testarConstrucao() {
     Reino reino;
     iniciarReino(reino);
 
-    reino.estoque = {30, 20, 0, 0, 0};   // exatamente o custo da fazenda
+    reino.estoque = {30, 20, 0, 0, 0};   // custo exato da fazenda
     construirEdificio(reino, FAZENDA, 1, 1);
     conferir(reino.edificios.tamanho == 1, "constroi com recursos exatos");
     conferir(reino.estoque.ouro == 0 && reino.estoque.madeira == 0, "cobra uma vez so");
@@ -79,20 +76,20 @@ static void testarConstrucao() {
 static void testarTurno() {
     cout << "Turno\n";
     Reino reino;
-    iniciarReino(reino);        // 20 habitantes, 6 soldados, 80 de comida
+    iniciarReino(reino);
     reino.estoque.ouro = 200;
     construirEdificio(reino, FAZENDA, 1, 1);
     construirEdificio(reino, SERRARIA, 1, 2);
 
     Recursos antes = reino.estoque;
     processarTurnoReino(reino);
-    // comida: +8 da fazenda - (20/5 + 6/3) = +2
+    // +8 da fazenda - 6 de consumo = +2
     conferir(reino.estoque.comida == antes.comida + 2, "producao e consumo de comida");
     conferir(reino.estoque.madeira == antes.madeira + 6, "serraria produz madeira");
     conferir(reino.estoque.ouro == antes.ouro + 10, "imposto de 1 ouro por 2 habitantes");
 
     reino.estoque.comida = 0;
-    demolirEdificio(reino, 1, 1);     // sem fazenda: vai faltar comida
+    demolirEdificio(reino, 1, 1);
     string msg = processarTurnoReino(reino);
     conferir(reino.estoque.comida == 0, "comida nao fica negativa");
     conferir(reino.populacao < 20, "fome faz gente ir embora");
