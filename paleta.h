@@ -34,5 +34,10 @@ const Color TEXTO_CLARO    = {245, 238, 220, 255};
 const Color JANELA         = {255, 210, 110, 255};
 const Color VERDE_TEXTO    = {46, 120, 60, 255};
 const Color BRASA          = {255, 128, 48, 255};
+const Color ROXO           = {112, 72, 172, 255};
+const Color ROXO_ESC       = {70, 42, 120, 255};
+const Color CRISTAL        = {120, 206, 255, 255};
+const Color CRISTAL_ESC    = {60, 120, 204, 255};
+const Color CORACAO_CLARO  = {255, 164, 150, 255};
 
 #endif

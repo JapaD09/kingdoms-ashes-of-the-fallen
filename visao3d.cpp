@@ -155,10 +155,10 @@ void desenharArvoresDoCenario(const Cenario& c, float tempo) {
     }
 }
 
-void desenharFlorestaDosLotes(float tempo) {
+void desenharFlorestaDosLotes(const Reino& reino, float tempo) {
     for (int l = 0; l < mapa.grade; l++) {
         for (int c = 0; c < mapa.grade; c++) {
-            if (loteLiberado(l, c)) continue;
+            if (loteLiberado(reino, l, c)) continue;
             int semente = l * 7 + c * 13 + 5;
             for (int i = 0; i < 3; i++) {
                 int dx, dy, tipo, tamanho, tom;
@@ -230,6 +230,20 @@ void desenharNumerosDaFila(const Reino& reino) {
         Vector2 t = GetWorldToScreenEx(topo, camera, mapa.largura, mapa.altura);
         DrawRectangle(static_cast<int>(t.x) - 3, static_cast<int>(t.y) - 1, 7, 9, CONTORNO);
         desenharTexto(TextFormat("%d", posicao), static_cast<int>(t.x) - 2, static_cast<int>(t.y), 1, DOURADO);
+    }
+}
+
+// bolinhas douradas = nível do prédio
+void desenharNiveis(const Reino& reino) {
+    for (NoEdificio* no = reino.edificios.primeiro; no != nullptr; no = no->proximo) {
+        const Edificio& e = no->dados;
+        if (e.nivel < 2) continue;
+        Vector2 pe = peDoLote(e.linha, e.coluna);
+        Vector3 topo = noMundo(pe.x, pe.y, ALTURA_PLANALTO + 1.75f);
+        Vector2 t = GetWorldToScreenEx(topo, camera, mapa.largura, mapa.altura);
+        int x = static_cast<int>(t.x) - e.nivel * 2, y = static_cast<int>(t.y);
+        DrawRectangle(x - 1, y - 1, e.nivel * 4 + 1, 5, CONTORNO);
+        for (int i = 0; i < e.nivel; i++) DrawRectangle(x + i * 4, y, 3, 3, DOURADO);
     }
 }
 
@@ -316,7 +330,7 @@ void desenharCena3D(const Cenario& cenario, const Reino& reino, const Previa3D& 
 
     BeginShaderMode(descarte);
     desenharArvoresDoCenario(cenario, tempo);
-    desenharFlorestaDosLotes(tempo);
+    desenharFlorestaDosLotes(reino, tempo);
     desenharPredios(reino);
     desenharGalinhas3D(tempo);
     EndShaderMode();
@@ -326,4 +340,5 @@ void desenharCena3D(const Cenario& cenario, const Reino& reino, const Previa3D& 
     rlEnableBackfaceCulling();
     EndMode3D();
     desenharNumerosDaFila(reino);
+    desenharNiveis(reino);
 }
