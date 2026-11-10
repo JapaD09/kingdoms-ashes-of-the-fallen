@@ -285,13 +285,17 @@ void gerarCenario(Cenario& c, Rectangle proibido, int largura, int altura,
     ordenarPorY(c);
 }
 
-void desenharCenario(const Cenario& c, float tempo) {
+static void desenharFundoCampo(const Cenario& c, float tempo) {
     ClearBackground(CAMPO);
     for (int i = 0; i < c.total; i++) {
         const ObjetoCenario& o = c.objetos[i];
         if (o.tipo == MANCHA) mancha(o.x, o.y, o.tamanho, o.tom);
     }
     desenharRiacho(c, tempo);
+}
+
+void desenharCenario(const Cenario& c, float tempo) {
+    desenharFundoCampo(c, tempo);
     for (int i = 0; i < c.total; i++) {
         const ObjetoCenario& o = c.objetos[i];
         if (o.tipo == MANCHA) continue;
@@ -303,12 +307,29 @@ void desenharCenario(const Cenario& c, float tempo) {
     }
 }
 
+void desenharChaoCenario(const Cenario& c, float tempo) {
+    desenharFundoCampo(c, tempo);
+    for (int i = 0; i < c.total; i++) {
+        const ObjetoCenario& o = c.objetos[i];
+        if (o.tipo > FLOR - 1 && o.tipo != MANCHA) desenharEnfeite(o, tempo);
+    }
+}
+
+void arvoreDoLote(int semente, int i, int& dx, int& dy, int& tipo, int& tamanho, int& tom) {
+    const int pos[3][2] = {{5, 11}, {15, 14}, {9, 21}};
+    dx = pos[i][0];
+    dy = pos[i][1];
+    tipo = (semente + i * 7) % 4;
+    tamanho = (semente + i) % 2;
+    tom = (semente * 3 + i) % 3;
+}
+
 // fumaça
 
 namespace {
 
 struct Fumaca {
-    float x, y, vida, tamanho;
+    float x, y, origemY, vida, tamanho;
 };
 
 Fumaca fumacas[80] = {};
@@ -318,7 +339,7 @@ Fumaca fumacas[80] = {};
 void soltarFumaca(float x, float y) {
     for (Fumaca& f : fumacas) {
         if (f.vida > 0) continue;
-        f = {x + GetRandomValue(-1, 1) * 0.5f, y, 2.6f, 1.5f};
+        f = {x + GetRandomValue(-1, 1) * 0.5f, y, y, 2.6f, 1.5f};
         return;
     }
 }
@@ -331,6 +352,15 @@ void atualizarFumaca(float dt) {
         f.x += 2.5f * dt;             // vento leva pro lado
         f.tamanho += 0.8f * dt;
     }
+}
+
+int obterFumacas(EstadoFumaca saida[], int maximo) {
+    int total = 0;
+    for (const Fumaca& f : fumacas) {
+        if (f.vida <= 0 || total >= maximo) continue;
+        saida[total++] = {f.x, f.y, f.origemY, f.vida, f.tamanho};
+    }
+    return total;
 }
 
 void desenharFumaca() {
@@ -369,21 +399,33 @@ void novoDestino(Galinha& g) {
     }
 }
 
-void desenharGalinha(const Galinha& g, float tempo) {
-    int x = static_cast<int>(g.x), y = static_cast<int>(g.y), d = g.direcao;
+EstadoGalinha estadoDaGalinha(const Galinha& g, float tempo) {
     bool andando = g.espera <= 0;
-    int cabecaY = (g.bicando && static_cast<int>(tempo * 6) % 2) ? y - 1 : y - 3;
+    int passo = andando ? static_cast<int>(tempo * 8) % 2 : 0;
+    bool baixa = g.bicando && static_cast<int>(tempo * 6) % 2;
+    return {g.x, g.y, g.direcao, passo, baixa};
+}
+
+}
+
+void desenharGalinhaEm(int x, int y, int d, int passo, bool cabecaBaixa) {
+    int cabecaY = cabecaBaixa ? y - 1 : y - 3;
     px(x - 1, y + 1, 4, 1, Fade(CONTORNO, 0.25f));            // sombra
     px(x - 1, y - 2, 3, 2, FLOR_BRANCA);                      // corpo
     px(x - d * 2, y - 3, 1, 1, FLOR_BRANCA);                  // rabo
     px(x + d * 2, cabecaY, 1, 1, FLOR_BRANCA);                // cabeça
     px(x + d * 2, cabecaY - 1, 1, 1, TELHADO_VERM);           // crista
     px(x + d * 3, cabecaY, 1, 1, DOURADO);                    // bico
-    int passo = andando ? static_cast<int>(tempo * 8) % 2 : 0;
     px(x - 1 + passo, y, 1, 1, DOURADO_ESCURO);               // pé
     px(x + 1 - passo, y, 1, 1, DOURADO_ESCURO);
 }
 
+int obterGalinhas(EstadoGalinha saida[], int maximo, float tempo) {
+    int total = 0;
+    for (int i = 0; i < totalGalinhas && total < maximo; i++) {
+        saida[total++] = estadoDaGalinha(galinhas[i], tempo);
+    }
+    return total;
 }
 
 void prepararGalinhas(Rectangle area, int quantidade, bool (*podeAndar)(float x, float y)) {
@@ -423,5 +465,8 @@ void atualizarGalinhas(float dt) {
 }
 
 void desenharGalinhas(float tempo) {
-    for (int i = 0; i < totalGalinhas; i++) desenharGalinha(galinhas[i], tempo);
+    for (int i = 0; i < totalGalinhas; i++) {
+        EstadoGalinha e = estadoDaGalinha(galinhas[i], tempo);
+        desenharGalinhaEm(static_cast<int>(e.x), static_cast<int>(e.y), e.direcao, e.passo, e.cabecaBaixa);
+    }
 }

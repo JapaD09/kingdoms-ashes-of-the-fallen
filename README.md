@@ -39,11 +39,28 @@ O reino é uma grade 5x5 com o castelo no meio; no começo só o 3x3 central est
 Todo turno o povo paga 1 de ouro a cada 2 habitantes e come 1 de comida a cada
 5 habitantes + 1 a cada 3 soldados. Se a comida acabar, parte do povo vai embora.
 
+### Vista 3D
+
+O mapa abre em **3D** (dá pra voltar pro 2D no botão **Vista 2D** ou na tecla `V`).
+
+| Tecla | O que faz |
+|---|---|
+| `Q` / `E` ou `←` / `→` | gira o mapa |
+| `W` / `S` ou `↑` / `↓` | inclina a câmera |
+| roda do mouse | zoom |
+| botão do meio + arrastar | gira com o mouse |
+| `R` | volta a câmera pro começo |
+| `F11` | tela cheia |
+| `Z` | desfaz a última construção/demolição do turno |
+
+A janela pode ser redimensionada à vontade.
+
 ## Andamento
 
 - [x] Etapa 1 — esqueleto, menu principal e validação de entrada
 - [x] Interface gráfica em pixel art — título, grade do reino, cartas e painéis
 - [x] Cenário vivo — bosques com 5 tipos de árvore, vento, riacho, galinhas e fumaça
+- [x] Vista meio 3D com câmera que gira, janela redimensionável e tela cheia
 - [x] Etapa 3 — economia (produção, consumo, construções)
 - [x] Etapa 4 — lista encadeada de edifícios
 - [x] Etapa 5 — pilha (desfazer) e fila de construção
@@ -94,12 +111,13 @@ g++ -std=c++17 -Wall -Wextra testes.cpp jogo.cpp reino.cpp estruturas.cpp algori
 | `fonte.h/.cpp` | Fonte própria em pixel art, com acentos |
 | `sprites.h/.cpp` | Desenhos do castelo, construções e ícones |
 | `natureza.h/.cpp` | Cenário vivo: árvores variadas, riacho, flores, galinhas e fumaça |
+| `visao3d.h/.cpp` | Vista meio 3D: chão em relevo, figuras em pé, câmera que gira |
 | `paleta.h` | Cores do jogo |
 | `reino.h/.cpp` | Recursos, catálogo de edifícios, construção e turno |
 | `expedicao.h/.cpp` | Mapa, nós e saque |
 | `combate.h/.cpp` | Inimigos, dano e recompensas |
-| `estruturas.h/.cpp` | Lista encadeada (pilha, fila e árvore nas próximas etapas) |
-| `algoritmos.h/.cpp` | Ordenação e buscas |
+| `estruturas.h/.cpp` | Lista encadeada, pilha, fila e árvore binária de busca |
+| `algoritmos.h/.cpp` | Insertion sort, busca sequencial e busca binária |
 
 ## Integrantes
 

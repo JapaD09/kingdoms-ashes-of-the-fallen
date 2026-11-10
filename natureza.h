@@ -32,6 +32,12 @@ void gerarCenario(Cenario& c, Rectangle proibido, int largura, int altura,
                   float riachoX, unsigned semente);
 void desenharCenario(const Cenario& c, float tempo);
 
+// só o chão (manchas, riacho, flores, pedras), sem as árvores - usado na vista 3D
+void desenharChaoCenario(const Cenario& c, float tempo);
+
+// as 3 árvores de um lote de floresta (mesmo sorteio no 2D e no 3D)
+void arvoreDoLote(int semente, int i, int& dx, int& dy, int& tipo, int& tamanho, int& tom);
+
 // balanco: entre -1 e 1, quanto o vento empurra a copa
 void desenharArvoreVariada(int x, int y, int tipo, int tamanho, int tom, float balanco);
 float ventoNaArvore(float tempo, float fase);
@@ -41,9 +47,22 @@ void soltarFumaca(float x, float y);
 void atualizarFumaca(float dt);
 void desenharFumaca();
 
+struct EstadoFumaca {
+    float x, y, origemY, vida, tamanho;
+};
+int obterFumacas(EstadoFumaca saida[], int maximo);
+
 // galinhas andando dentro de uma área
 void prepararGalinhas(Rectangle area, int quantidade, bool (*podeAndar)(float x, float y));
 void atualizarGalinhas(float dt);
 void desenharGalinhas(float tempo);
+
+struct EstadoGalinha {
+    float x, y;
+    int direcao, passo;
+    bool cabecaBaixa;
+};
+int obterGalinhas(EstadoGalinha saida[], int maximo, float tempo);
+void desenharGalinhaEm(int x, int y, int direcao, int passo, bool cabecaBaixa);
 
 #endif

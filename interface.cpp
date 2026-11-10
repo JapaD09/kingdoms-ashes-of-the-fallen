@@ -4,6 +4,7 @@
 #include "algoritmos.h"
 #include "fonte.h"
 #include "natureza.h"
+#include "visao3d.h"
 #include "paleta.h"
 #include "sprites.h"
 #include "raylib.h"
@@ -85,6 +86,7 @@ Cenario cenarioTitulo;
 const Reino* reinoAtual = nullptr;   // pras galinhas saberem onde tem prédio
 int fazendasContadas = -1;
 float tempoFumaca = 0;
+bool modo3D = true;          // vista meio 3D (V troca)
 
 const Carta CARTAS[] = {
     {FAZENDA, "+8 comida\npor turno", desenharFazenda},
@@ -101,6 +103,7 @@ const Botao BOTOES[] = {
     {{4, 62, 70, 17}, "Catálogo", 5, iconeLivro},
     {{4, 82, 70, 17}, "Recursos", 3, iconeBau},
     {{4, 102, 70, 17}, "Desfazer", 7, iconeDesfazer},
+    {{4, 122, 70, 17}, "Vista 2D", 8, iconeVista},
     {{246, 150, 70, 27}, "Fim do turno", 6, iconeAmpulheta},
     {{4, 160, 44, 17}, "Sair", 0, iconePorta},
 };
@@ -176,12 +179,26 @@ int cartaSobMouse() {
 }
 
 // lote embaixo do mouse
-bool loteSobMouse(int& linha, int& coluna) {
+// mouse em cima de botão, painel ou barra (no 3D o mapa passa por baixo deles)
+bool mouseNaInterface() {
     Vector2 m = mouseVirtual();
+    if (m.y < 16 || cartaSobMouse() >= 0) return true;
+    if (CheckCollisionPointRec(m, {246, 20, 70, 124})) return true;
+    for (int i = 0; i < TOTAL_BOTOES; i++) {
+        if (mouseSobre(BOTOES[i].area)) return true;
+    }
+    return false;
+}
+
+// lote embaixo do mouse (no 3D, onde o raio do mouse bate no chão)
+bool loteSobMouse(int& linha, int& coluna) {
+    if (mouseNaInterface()) return false;
+    Vector2 m = mouseVirtual();
+    if (modo3D && !mouseNoMapa3D(m, m)) return false;
     if (m.x < GRADE_X || m.y < GRADE_Y) return false;
     coluna = static_cast<int>(m.x - GRADE_X) / LOTE;
     linha = static_cast<int>(m.y - GRADE_Y) / LOTE;
-    return linha < GRADE && coluna < GRADE && cartaSobMouse() < 0;
+    return linha < GRADE && coluna < GRADE;
 }
 
 // brasas
@@ -231,7 +248,7 @@ void desenharVinheta() {
     }
 }
 
-void desenharLote(int linha, int coluna) {
+void desenharLote(int linha, int coluna, bool comArvores = true) {
     Rectangle r = areaLote(linha, coluna);
     int x = r.x, y = r.y;
     bool livre = loteLiberado(linha, coluna);
@@ -244,16 +261,15 @@ void desenharLote(int linha, int coluna) {
         int ty = y + 2 + (semente * (i + 5) + i * 7) % 18;
         DrawRectangle(tx, ty, 1, 1, livre ? GRAMA_CLARA : GRAMA);
     }
-    if (!livre) {
-        const int pos[3][2] = {{5, 11}, {15, 14}, {9, 21}};
+    if (!livre && comArvores) {
         for (int i = 0; i < 3; i++) {
-            int tipo = (semente + i * 7) % 4;
-            int tom = (semente * 3 + i) % 3;
+            int dx, dy, tipo, tamanho, tom;
+            arvoreDoLote(semente, i, dx, dy, tipo, tamanho, tom);
             float vento = ventoNaArvore(tempo(), semente + i * 2.0f);
-            desenharArvoreVariada(x + pos[i][0], y + pos[i][1], tipo, (semente + i) % 2, tom, vento);
+            desenharArvoreVariada(x + dx, y + dy, tipo, tamanho, tom, vento);
         }
-        DrawRectangle(x, y, LOTE, LOTE, Fade(CONTORNO, 0.15f));
     }
+    if (!livre) DrawRectangle(x, y, LOTE, LOTE, Fade(CONTORNO, 0.15f));
     DrawRectangleLines(x, y, LOTE, LOTE, Fade(CONTORNO, 0.25f));
 }
 
@@ -270,7 +286,7 @@ void desenharPlanalto() {
     DrawRectangleLines(x - 1, y - 1, lado + 2, lado + 8, CONTORNO);
 }
 
-void desenharDestaqueLote(const Reino& reino) {
+void desenharDestaqueLote(const Reino& reino, bool comPrevia = true) {
     int linha, coluna;
     if (!loteSobMouse(linha, coluna)) return;
     Rectangle r = areaLote(linha, coluna);
@@ -282,7 +298,7 @@ void desenharDestaqueLote(const Reino& reino) {
     float pulso = 0.55f + 0.45f * sinf(tempo() * 6.0f);
 
     if (tela.cartaSelecionada >= 0 && podeConstruir) {
-        CARTAS[tela.cartaSelecionada].desenho(r.x, r.y, 1);   // prévia
+        if (comPrevia) CARTAS[tela.cartaSelecionada].desenho(r.x, r.y, 1);
         DrawRectangle(r.x, r.y, LOTE, LOTE, Fade(TEXTO_CLARO, 0.15f * pulso));
         DrawRectangleLinesEx(r, 1, Fade(DOURADO, pulso));
         return;
@@ -361,7 +377,9 @@ void desenharBarraTopo(const Jogo& jogo) {
     itemTopo(iconeSoldado, reino.soldados, "Soldados", x);
 }
 
-void desenharBotao(const Botao& b) {
+void desenharBotao(const Botao& original) {
+    Botao b = original;
+    if (b.acao == 8) b.texto = modo3D ? "Vista 2D" : "Vista 3D";
     bool sobre = mouseSobre(b.area);
     bool principal = b.acao == 6;
     Color fundo = principal ? TELHADO_VERM : MADEIRA_ESCURA;
@@ -456,7 +474,7 @@ void desenharResumoReino(const Reino& reino) {
     desenharTexto(TextFormat("Edifícios: %d", reino.edificios.tamanho), 251, y + 7, 1, MADEIRA_ESCURA);
     desenharTexto(TextFormat("Defesa: %d", reino.defesa), 251, y + 18, 1, MADEIRA_ESCURA);
     desenharTexto(TextFormat("Na fila: %d", reino.ordens.tamanho), 251, y + 29, 1, MADEIRA_ESCURA);
-    desenharTexto("1-5: cartas\nZ: desfazer", 251, 122, 1, PERGAMINHO_ESC);
+    desenharTexto(modo3D ? "Q/E: girar\nRoda: zoom" : "1-5: cartas\nZ: desfazer", 251, 122, 1, PERGAMINHO_ESC);
 }
 
 void desenharPainelInfo(const Reino& reino) {
@@ -622,11 +640,40 @@ void desenharTelaTitulo() {
     desenharVinheta();
 }
 
-void desenharTelaReino(const Jogo& jogo) {
-    tela.dica = nullptr;
-    desenharCenario(cenarioReino, tempo());
-    desenharGrade(jogo.reino);
+// chão que vira textura na vista 3D: sem árvores e sem prédios (eles ficam em pé)
+void desenharChaoDoReino(const Reino& reino) {
+    desenharChaoCenario(cenarioReino, tempo());
+    int lado = GRADE * LOTE + 6;
+    DrawRectangle(GRADE_X - 3, GRADE_Y - 3, lado, lado, GRAMA_ESCURA);
+    for (int l = 0; l < GRADE; l++) {
+        for (int c = 0; c < GRADE; c++) desenharLote(l, c, false);
+    }
     desenharSombrasNuvens();
+    desenharDestaqueLote(reino, false);
+}
+
+Previa3D previaDaCarta(const Reino& reino) {
+    Previa3D previa;
+    int linha, coluna;
+    if (tela.cartaSelecionada < 0 || !loteSobMouse(linha, coluna)) return previa;
+    bool livre = loteLiberado(linha, coluna) && !ehCastelo(linha, coluna)
+              && !buscarEdificioNoLote(reino.edificios, linha, coluna)
+              && !loteNaFila(reino.ordens, linha, coluna);
+    if (!livre) return previa;
+    previa.linha = linha;
+    previa.coluna = coluna;
+    previa.tipo = CARTAS[tela.cartaSelecionada].tipo;
+    return previa;
+}
+
+void desenharTelaReino(const Jogo& jogo) {
+    if (modo3D) {
+        desenharCena3D(cenarioReino, jogo.reino, previaDaCarta(jogo.reino), tempo());
+    } else {
+        desenharCenario(cenarioReino, tempo());
+        desenharGrade(jogo.reino);
+        desenharSombrasNuvens();
+    }
     desenharBrasas();
     desenharVinheta();
 
@@ -707,6 +754,10 @@ void executarAcao(Jogo& jogo, int acao) {
             break;
         case 5:
             abrirCatalogo(jogo);
+            break;
+        case 8:
+            modo3D = !modo3D;
+            avisar(modo3D ? "Vista 3D: Q/E giram, roda dá zoom, R volta." : "Vista 2D.");
             break;
         default:
             avisar("Essa parte do reino ainda está em obras.");
@@ -823,6 +874,8 @@ void atualizarTelaReino(Jogo& jogo) {
     tratarTeclasCartas();
     if (IsKeyPressed(KEY_SPACE)) executarAcao(jogo, 6);
     if (IsKeyPressed(KEY_Z)) executarAcao(jogo, 7);
+    if (IsKeyPressed(KEY_V)) executarAcao(jogo, 8);
+    if (modo3D) atualizarCamera3D(GetFrameTime());
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) tratarClique(jogo);
 }
 
@@ -840,6 +893,9 @@ void abrirJanela() {
     Rectangle planalto = {GRADE_X - 6.0f, GRADE_Y - 8.0f, GRADE * LOTE + 12.0f, GRADE * LOTE + 32.0f};
     gerarCenario(cenarioReino, planalto, VL, VA, 88, 7);
     gerarCenario(cenarioTitulo, {92, 60, 136, 92}, VL, VA, 262, 21);
+    InfoMapa info = {VL, VA, GRADE_X, GRADE_Y, LOTE, GRADE, {}};
+    for (int i = 0; i < TOTAL_CARTAS; i++) info.predios[CARTAS[i].tipo] = CARTAS[i].desenho;
+    iniciarVisao3D(info);
 }
 
 bool janelaAberta() {
@@ -847,6 +903,7 @@ bool janelaAberta() {
 }
 
 void fecharJanela() {
+    liberarVisao3D();
     UnloadRenderTexture(alvo);
     CloseWindow();
 }
@@ -868,6 +925,12 @@ void atualizarInterface(Jogo& jogo) {
 }
 
 void desenharInterface(const Jogo& jogo) {
+    tela.dica = nullptr;
+    if (tela.atual == TELA_REINO && modo3D) {
+        BeginTextureMode(texturaDoChao());       // o chão do 3D é desenhado antes
+        desenharChaoDoReino(jogo.reino);
+        EndTextureMode();
+    }
     BeginTextureMode(alvo);
     if (tela.atual == TELA_TITULO) {
         desenharTelaTitulo();
