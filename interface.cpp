@@ -1,358 +1,523 @@
 // Parte visual do Kingdoms, feita com raylib.
-// Tudo que e cenario (ceu, castelo, brasas) e desenhado com formas simples,
-// sem imagens externas, pra nao depender de arquivo de sprite.
+//
+// Tudo é desenhado numa tela pequena de 320x180 e depois ampliado 4x com
+// filtro POINT, assim cada retângulo vira um pixel de verdade.
+// As regras ficam em jogo.cpp / reino.cpp; aqui só tem desenho e clique.
 
 #include "interface.h"
+#include "fonte.h"
+#include "paleta.h"
+#include "sprites.h"
 #include "raylib.h"
 #include <cmath>
+#include <cstdlib>
 #include <string>
 
 using namespace std;
 
 namespace {
 
-const int LARGURA = 1100;
-const int ALTURA = 680;
-const int CHAO = 600;
-const int MAX_BRASAS = 80;
-
-const Color CEU_TOPO     = {16, 12, 24, 255};
-const Color CEU_BAIXO    = {92, 38, 30, 255};
-const Color SILHUETA     = {22, 18, 26, 255};
-const Color PAINEL       = {24, 20, 26, 235};
-const Color BORDA        = {128, 88, 50, 255};
-const Color DOURADO      = {236, 186, 88, 255};
-const Color TEXTO        = {228, 218, 202, 255};
-const Color TEXTO_FRACO  = {150, 138, 124, 255};
-const Color BRASA        = {255, 118, 40, 255};
-const Color JANELA_ACESA = {255, 196, 96, 255};
+const int VL = 320;       // largura virtual
+const int VA = 180;       // altura virtual
+const int ESCALA = 4;
+const int GRADE = 5;      // reino 5x5, começa com o 3x3 do meio liberado
+const int LOTE = 22;
+const int GRADE_X = 105;
+const int GRADE_Y = 19;
+const int MAX_BRASAS = 40;
 
 enum Tela { TELA_TITULO, TELA_REINO };
 
-// fagulhas subindo no fundo, da o clima de "cinzas"
+// fagulhas subindo: o "ashes" do nome
 struct Brasa {
     float x, y;
     float velocidade;
-    float brilho;
+};
+
+struct Carta {
+    const char* nome;
+    int ouro, madeira, pedra, ferro;
+    const char* efeito;
+    Desenho desenho;
 };
 
 struct Botao {
     Rectangle area;
     const char* texto;
-    int acao;    // mesmo numero da opcao do menu de terminal
-    int tecla;
+    int acao;    // mesmos números do menu antigo de terminal
+    Desenho icone;
 };
 
 struct EstadoTela {
     Tela atual = TELA_TITULO;
     Brasa brasas[MAX_BRASAS];
-    string mensagem = "Bem-vindo a Ashenfall. O reino aguarda suas ordens.";
-    float tempoMensagem = 6.0f;
+    string mensagem;
+    float tempoMensagem = 0.0f;
     float tempoTransicao = 0.0f;
+    int cartaSelecionada = -1;
     bool painelRecursos = false;
+    const char* dica = nullptr;   // texto que aparece do lado do mouse
 };
 
 EstadoTela tela;
+RenderTexture2D alvo;
+
+const Carta CARTAS[] = {
+    {"Fazenda", 30, 20, 0, 0, "+8 comida\npor turno", desenharFazenda},
+    {"Serraria", 35, 15, 0, 0, "+6 madeira\npor turno", desenharSerraria},
+    {"Quartel", 50, 30, 10, 0, "libera\nrecrutar", desenharQuartel},
+    {"Muralha", 40, 0, 25, 0, "+defesa\ndo reino", desenharMuralha},
+    {"Oficina", 45, 20, 0, 15, "armas e\narmaduras", desenharOficina},
+};
+const int TOTAL_CARTAS = sizeof(CARTAS) / sizeof(CARTAS[0]);
 
 const Botao BOTOES[] = {
-    {{790, 150, 280, 50}, "Gerenciar edificios", 1, KEY_ONE},
-    {{790, 210, 280, 50}, "Recrutar soldados", 2, KEY_TWO},
-    {{790, 270, 280, 50}, "Consultar recursos", 3, KEY_THREE},
-    {{790, 330, 280, 50}, "Preparar expedicao", 4, KEY_FOUR},
-    {{790, 390, 280, 50}, "Consultar catalogo", 5, KEY_FIVE},
-    {{790, 450, 280, 50}, "Encerrar turno", 6, KEY_SIX},
-    {{790, 530, 280, 44}, "Sair", 0, KEY_ZERO},
+    {{4, 22, 70, 17}, "Recrutar", 2, iconeSoldado},
+    {{4, 42, 70, 17}, "Expedição", 4, iconeMapa},
+    {{4, 62, 70, 17}, "Catálogo", 5, iconeLivro},
+    {{4, 82, 70, 17}, "Recursos", 3, iconeBau},
+    {{246, 150, 70, 27}, "Fim do turno", 6, iconeAmpulheta},
+    {{4, 160, 44, 17}, "Sair", 0, iconePorta},
 };
 const int TOTAL_BOTOES = sizeof(BOTOES) / sizeof(BOTOES[0]);
 
-// ---------------- utilidades ----------------
-
-void bloco(float x, float y, float largura, float altura, Color cor) {
-    DrawRectangleRec({x, y, largura, altura}, cor);
-}
-
-bool mouseSobre(Rectangle area) {
-    return CheckCollisionPointRec(GetMousePosition(), area);
-}
-
-void textoComSombra(const char* texto, int x, int y, int tamanho, Color cor) {
-    DrawText(texto, x + 2, y + 2, tamanho, Fade(BLACK, 0.6f));
-    DrawText(texto, x, y, tamanho, cor);
-}
-
-void textoCentralizado(const char* texto, int y, int tamanho, Color cor) {
-    int largura = MeasureText(texto, tamanho);
-    textoComSombra(texto, (LARGURA - largura) / 2, y, tamanho, cor);
-}
-
-void avisar(const string& mensagem) {
-    tela.mensagem = mensagem;
-    tela.tempoMensagem = 5.0f;
-}
+// ================= utilidades =================
 
 float tempo() {
     return static_cast<float>(GetTime());
 }
 
-// ---------------- brasas ----------------
+// caixa com os cantos "cortados", fica com cara de pixel art arredondada
+void caixa(Rectangle r, Color borda, Color fundo) {
+    int x = r.x, y = r.y, w = r.width, h = r.height;
+    DrawRectangle(x + 1, y, w - 2, h, borda);
+    DrawRectangle(x, y + 1, w, h - 2, borda);
+    DrawRectangle(x + 1, y + 1, w - 2, h - 2, fundo);
+}
+
+void caixaComSombra(Rectangle r, Color fundo) {
+    DrawRectangle(r.x + 1, r.y + r.height, r.width - 1, 2, Fade(CONTORNO, 0.45f));
+    caixa(r, CONTORNO, fundo);
+}
+
+Vector2 mouseVirtual() {
+    Vector2 m = GetMousePosition();
+    return {m.x / ESCALA, m.y / ESCALA};
+}
+
+bool mouseSobre(Rectangle r) {
+    return CheckCollisionPointRec(mouseVirtual(), r);
+}
+
+void textoCentralizado(const char* texto, int y, int escala, Color cor) {
+    int x = (VL - larguraTexto(texto, escala)) / 2;
+    desenharTextoSombra(texto, x, y, escala, cor);
+}
+
+void avisar(const string& mensagem) {
+    tela.mensagem = mensagem;
+    tela.tempoMensagem = 3.5f;
+}
+
+bool podePagar(const Reino& reino, const Carta& carta) {
+    const Recursos& r = reino.estoque;
+    return r.ouro >= carta.ouro && r.madeira >= carta.madeira
+        && r.pedra >= carta.pedra && r.ferro >= carta.ferro;
+}
+
+bool loteLiberado(int linha, int coluna) {
+    return abs(linha - 2) <= 1 && abs(coluna - 2) <= 1;
+}
+
+bool ehCastelo(int linha, int coluna) {
+    return linha == 2 && coluna == 2;
+}
+
+Rectangle areaLote(int linha, int coluna) {
+    return {static_cast<float>(GRADE_X + coluna * LOTE),
+            static_cast<float>(GRADE_Y + linha * LOTE),
+            static_cast<float>(LOTE), static_cast<float>(LOTE)};
+}
+
+Rectangle areaCarta(int i) {
+    return {static_cast<float>(75 + i * 34), 138, 32, 42};
+}
+
+int cartaSobMouse() {
+    for (int i = 0; i < TOTAL_CARTAS; i++) {
+        if (mouseSobre(areaCarta(i))) return i;
+    }
+    return -1;
+}
+
+// true se o mouse está em cima da grade; preenche linha e coluna
+bool loteSobMouse(int& linha, int& coluna) {
+    Vector2 m = mouseVirtual();
+    if (m.x < GRADE_X || m.y < GRADE_Y) return false;
+    coluna = static_cast<int>(m.x - GRADE_X) / LOTE;
+    linha = static_cast<int>(m.y - GRADE_Y) / LOTE;
+    return linha < GRADE && coluna < GRADE && cartaSobMouse() < 0;
+}
+
+// ================= brasas =================
 
 void reiniciarBrasa(Brasa& b, bool espalhar) {
-    b.x = GetRandomValue(0, LARGURA);
-    b.y = espalhar ? GetRandomValue(0, ALTURA) : ALTURA + GetRandomValue(0, 40);
-    b.velocidade = GetRandomValue(20, 60);
-    b.brilho = GetRandomValue(50, 100) / 100.0f;
+    b.x = GetRandomValue(0, VL);
+    b.y = espalhar ? GetRandomValue(0, VA) : VA + GetRandomValue(0, 20);
+    b.velocidade = GetRandomValue(6, 16);
 }
 
 void atualizarBrasas(float dt) {
     for (Brasa& b : tela.brasas) {
         b.y -= b.velocidade * dt;
-        b.x += sinf(b.y * 0.02f) * 0.3f;   // balanca um pouco pros lados
-        if (b.y < -10) {
-            reiniciarBrasa(b, false);
-        }
+        b.x += sinf(b.y * 0.1f) * 0.05f;
+        if (b.y < 0) reiniciarBrasa(b, false);
     }
 }
 
 void desenharBrasas() {
     for (const Brasa& b : tela.brasas) {
-        float alpha = b.brilho * (b.y / ALTURA);   // apaga conforme sobe
-        DrawCircleV({b.x, b.y}, 2.0f, Fade(BRASA, alpha));
+        float alpha = b.y / VA;   // vai apagando conforme sobe
+        DrawRectangle(static_cast<int>(b.x), static_cast<int>(b.y), 1, 1, Fade(BRASA, alpha));
     }
 }
 
-// ---------------- cenario ----------------
+// ================= cenário =================
 
-void desenharCeu() {
-    DrawRectangleGradientV(0, 0, LARGURA, ALTURA, CEU_TOPO, CEU_BAIXO);
-}
-
-void desenharLua(int x, int y) {
-    DrawCircle(x, y, 70, Fade(JANELA_ACESA, 0.05f));
-    DrawCircle(x, y, 52, Fade(JANELA_ACESA, 0.08f));
-    DrawCircle(x, y, 38, {238, 222, 196, 255});
-    DrawCircle(x - 10, y - 8, 7, {214, 198, 172, 255});
-    DrawCircle(x + 12, y + 10, 5, {214, 198, 172, 255});
-}
-
-void desenharColinas() {
-    DrawCircle(150, CHAO + 160, 260, {40, 24, 30, 255});
-    DrawCircle(620, CHAO + 220, 330, {36, 22, 28, 255});
-    DrawCircle(1000, CHAO + 170, 260, {40, 24, 30, 255});
-    bloco(0, CHAO, LARGURA, ALTURA - CHAO, SILHUETA);
-}
-
-// ameias = os "dentinhos" em cima da muralha
-void desenharAmeias(float x, float y, float largura, float e) {
-    for (float px = x; px + 9 * e <= x + largura; px += 16 * e) {
-        bloco(px, y - 10 * e, 9 * e, 10 * e, SILHUETA);
+void desenharFundo() {
+    ClearBackground(FUNDO);
+    for (int i = 0; i < 220; i++) {
+        int x = (i * 73 + i / 7) % VL;
+        int y = (i * 151 + i * i) % VA;
+        Color cor = FUNDO_PONTO;
+        if (i % 23 == 0) cor = FLOR_AMARELA;
+        else if (i % 31 == 0) cor = FLOR_BRANCA;
+        DrawRectangle(x, y, (i % 3 == 0) ? 2 : 1, 1, cor);
     }
 }
 
-void desenharTorre(float x, float chao, float largura, float altura, float e) {
-    float topo = chao - altura;
-    bloco(x, topo, largura, altura, SILHUETA);
-    DrawTriangle({x + largura / 2, topo - 50 * e},
-                 {x - 6 * e, topo},
-                 {x + largura + 6 * e, topo}, SILHUETA);
+// sombras de nuvem passando devagar por cima do mapa
+void desenharSombrasNuvens() {
+    Color sombra = Fade(CONTORNO, 0.13f);
+    for (int i = 0; i < 3; i++) {
+        float andou = fmodf(tempo() * 4.0f + i * 140.0f, VL + 120.0f);
+        int x = static_cast<int>(andou) - 60;
+        int y = 34 + i * 48;
+        DrawRectangle(x + 8, y - 4, 30, 4, sombra);
+        DrawRectangle(x, y, 50, 10, sombra);
+        DrawRectangle(x + 4, y + 10, 36, 4, sombra);
+    }
 }
 
-void desenharBandeira(float x, float topo, float e) {
-    float onda = sinf(tempo() * 4.0f) * 4 * e;
-    DrawLineEx({x, topo}, {x, topo - 45 * e}, 2 * e, SILHUETA);
-    DrawTriangle({x, topo - 45 * e},
-                 {x, topo - 25 * e},
-                 {x + 30 * e, topo - 35 * e + onda}, {150, 40, 36, 255});
+// escurece as bordas da tela
+void desenharVinheta() {
+    for (int i = 0; i < 8; i++) {
+        Rectangle borda = {static_cast<float>(i), static_cast<float>(i),
+                           static_cast<float>(VL - 2 * i), static_cast<float>(VA - 2 * i)};
+        DrawRectangleLinesEx(borda, 1, Fade(CONTORNO, 0.32f - i * 0.04f));
+    }
 }
 
-void desenharJanela(float x, float y, float e, int semente) {
-    float pisca = 0.75f + 0.25f * sinf(tempo() * 3.0f + semente);
-    bloco(x, y, 8 * e, 14 * e, Fade(JANELA_ACESA, pisca));
+void desenharArvoresEmVolta() {
+    const int pos[][2] = {{80, 26}, {92, 56}, {79, 90}, {93, 112}, {84, 128},
+                          {222, 28}, {232, 62}, {221, 98}, {234, 118}};
+    for (const auto& p : pos) {
+        desenharArvore(p[0], p[1], 1);
+    }
 }
 
-void desenharDetalhesCastelo(float x, float chao, float e) {
-    DrawCircleV({x + 150 * e, chao - 50 * e}, 22 * e, {10, 8, 12, 255});
-    bloco(x + 128 * e, chao - 50 * e, 44 * e, 50 * e, {10, 8, 12, 255});
+void desenharLote(int linha, int coluna) {
+    Rectangle r = areaLote(linha, coluna);
+    int x = r.x, y = r.y;
+    bool livre = loteLiberado(linha, coluna);
+    Color base = (linha + coluna) % 2 ? GRAMA : GRAMA_ALT;
 
-    desenharJanela(x + 128 * e, chao - 178 * e, e, 0);
-    desenharJanela(x + 164 * e, chao - 178 * e, e, 1);
-    desenharJanela(x - 4 * e, chao - 140 * e, e, 2);
-    desenharJanela(x + 296 * e, chao - 140 * e, e, 3);
-    desenharJanela(x + 50 * e, chao - 85 * e, e, 4);
-    desenharJanela(x + 242 * e, chao - 85 * e, e, 5);
+    DrawRectangle(x, y, LOTE, LOTE, livre ? base : GRAMA_ESCURA);
+    int semente = linha * 7 + coluna * 13 + 5;
+    for (int i = 0; i < 5; i++) {         // tufinhos em posições fixas
+        int tx = x + 2 + (semente * (i + 3)) % 18;
+        int ty = y + 2 + (semente * (i + 5) + i * 7) % 18;
+        DrawRectangle(tx, ty, 1, 1, livre ? GRAMA_CLARA : GRAMA);
+    }
+    if (!livre) {
+        desenharArvore(x + 2, y + 2, 1);
+        desenharArvore(x + 12, y + 6, 1);
+        desenharArvore(x + 5, y + 11, 1);
+        DrawRectangle(x, y, LOTE, LOTE, Fade(CONTORNO, 0.18f));
+    }
+    DrawRectangleLines(x, y, LOTE, LOTE, Fade(CONTORNO, 0.25f));
 }
 
-// x = canto esquerdo da muralha, e = escala
-void desenharCastelo(float x, float chao, float e) {
-    bloco(x, chao - 120 * e, 300 * e, 120 * e, SILHUETA);
-    desenharAmeias(x, chao - 120 * e, 300 * e, e);
-
-    bloco(x + 105 * e, chao - 210 * e, 90 * e, 210 * e, SILHUETA);
-    desenharAmeias(x + 105 * e, chao - 210 * e, 90 * e, e);
-
-    desenharTorre(x - 30 * e, chao, 60 * e, 180 * e, e);
-    desenharTorre(x + 270 * e, chao, 60 * e, 180 * e, e);
-    desenharBandeira(x + 150 * e, chao - 220 * e, e);
-    desenharDetalhesCastelo(x, chao, e);
+// a grade fica num "planalto" com barranco de terra embaixo
+void desenharPlanalto() {
+    int lado = GRADE * LOTE + 6;
+    int x = GRADE_X - 3, y = GRADE_Y - 3;
+    DrawRectangle(x + 3, y + lado + 6, lado, 4, Fade(CONTORNO, 0.35f));
+    DrawRectangle(x, y, lado, lado, GRAMA_ESCURA);
+    DrawRectangle(x, y + lado, lado, 6, TERRA);
+    for (int i = 0; i < lado - 4; i += 7) {
+        DrawRectangle(x + 2 + i, y + lado + 1 + (i / 7 % 2) * 2, 4, 2, TERRA_ESCURA);
+    }
+    DrawRectangleLines(x - 1, y - 1, lado + 2, lado + 8, CONTORNO);
 }
 
-// ---------------- icones dos recursos ----------------
+void desenharDestaqueLote() {
+    int linha, coluna;
+    if (!loteSobMouse(linha, coluna)) return;
+    Rectangle r = areaLote(linha, coluna);
+    bool podeConstruir = loteLiberado(linha, coluna) && !ehCastelo(linha, coluna);
+    float pulso = 0.55f + 0.45f * sinf(tempo() * 6.0f);
 
-typedef void (*FuncaoIcone)(float x, float y);
-
-void iconeOuro(float x, float y) {
-    DrawCircleV({x, y}, 10, {230, 180, 60, 255});
-    DrawCircleV({x, y}, 6, {250, 214, 110, 255});
+    if (tela.cartaSelecionada >= 0 && podeConstruir) {
+        CARTAS[tela.cartaSelecionada].desenho(r.x, r.y, 1);   // prévia da construção
+        DrawRectangle(r.x, r.y, LOTE, LOTE, Fade(TEXTO_CLARO, 0.15f * pulso));
+        DrawRectangleLinesEx(r, 1, Fade(DOURADO, pulso));
+        return;
+    }
+    DrawRectangleLinesEx(r, 1, Fade(TEXTO_CLARO, 0.6f));
 }
 
-void iconeMadeira(float x, float y) {
-    bloco(x - 11, y - 6, 22, 12, {130, 82, 44, 255});
-    DrawCircleV({x + 11, y}, 6, {176, 124, 74, 255});
+void desenharGrade() {
+    desenharPlanalto();
+    for (int l = 0; l < GRADE; l++) {
+        for (int c = 0; c < GRADE; c++) {
+            desenharLote(l, c);
+        }
+    }
+    desenharCastelo(GRADE_X + 2 * LOTE, GRADE_Y + 2 * LOTE, 1);
+    desenharDestaqueLote();
 }
 
-void iconePedra(float x, float y) {
-    DrawPoly({x, y}, 5, 11, 15, {130, 128, 136, 255});
+// ================= HUD =================
+
+int itemTopo(Desenho icone, int valor, const char* nome, int x) {
+    const char* numero = TextFormat("%d", valor);
+    int largura = 13 + larguraTexto(numero, 1);
+    Rectangle r = {static_cast<float>(x), 2, static_cast<float>(largura), 11};
+
+    caixa(r, Fade(CONTORNO, 0.6f), Fade(CONTORNO, 0.35f));
+    icone(x + 2, 4, 1);
+    desenharTexto(numero, x + 11, 4, 1, TEXTO_CLARO);
+    if (mouseSobre(r)) tela.dica = nome;
+    return x + largura + 3;
 }
 
-void iconeComida(float x, float y) {
-    DrawCircleV({x, y + 2}, 9, {196, 60, 52, 255});
-    DrawCircleV({x + 4, y - 8}, 4, {90, 160, 70, 255});
-}
-
-void iconeFerro(float x, float y) {
-    DrawPoly({x, y}, 6, 10, 0, {120, 140, 160, 255});
-    DrawPoly({x, y}, 6, 5, 0, {170, 186, 204, 255});
-}
-
-void iconePovo(float x, float y) {
-    DrawCircleV({x, y - 7}, 5, TEXTO);
-    bloco(x - 6, y - 1, 12, 11, TEXTO);
-}
-
-void iconeSoldado(float x, float y) {
-    bloco(x - 2, y - 12, 4, 22, {190, 196, 206, 255});
-    bloco(x - 8, y + 3, 16, 3, DOURADO);
-}
-
-// ---------------- paineis ----------------
-
-void desenharRecurso(FuncaoIcone icone, int valor, const char* nome, float x) {
-    icone(x + 12, 34);
-    textoComSombra(TextFormat("%d", valor), static_cast<int>(x) + 32, 14, 24, TEXTO);
-    DrawText(nome, static_cast<int>(x) + 32, 42, 14, TEXTO_FRACO);
-}
-
-void desenharBarraSuperior(const Jogo& jogo) {
+void desenharBarraTopo(const Jogo& jogo) {
     const Reino& reino = jogo.reino;
-    bloco(0, 0, LARGURA, 72, PAINEL);
-    DrawLineEx({0, 72}, {LARGURA, 72}, 2, BORDA);
-    textoComSombra(jogo.nomeReino.c_str(), 20, 10, 28, DOURADO);
-    DrawText(TextFormat("Turno %d", jogo.turno), 22, 44, 18, TEXTO_FRACO);
+    DrawRectangle(0, 0, VL, 15, MADEIRA_ESCURA);
+    for (int i = 37; i < VL; i += 46) DrawRectangle(i, 0, 1, 15, Fade(CONTORNO, 0.4f));
+    DrawRectangle(0, 0, VL, 1, MADEIRA);
+    DrawRectangle(0, 15, VL, 1, CONTORNO);
 
-    desenharRecurso(iconeOuro, reino.estoque.ouro, "ouro", 240);
-    desenharRecurso(iconeMadeira, reino.estoque.madeira, "madeira", 355);
-    desenharRecurso(iconePedra, reino.estoque.pedra, "pedra", 470);
-    desenharRecurso(iconeComida, reino.estoque.comida, "comida", 585);
-    desenharRecurso(iconeFerro, reino.estoque.ferro, "ferro", 700);
-    desenharRecurso(iconePovo, reino.populacao, "populacao", 815);
-    desenharRecurso(iconeSoldado, reino.soldados, "soldados", 950);
+    iconeCoroa(4, 4, 1);
+    desenharTextoSombra(TextFormat("Turno %d", jogo.turno), 14, 4, 1, DOURADO);
+
+    int x = 64;
+    x = itemTopo(iconeOuro, reino.estoque.ouro, "Ouro", x);
+    x = itemTopo(iconeMadeira, reino.estoque.madeira, "Madeira", x);
+    x = itemTopo(iconePedra, reino.estoque.pedra, "Pedra", x);
+    x = itemTopo(iconeComida, reino.estoque.comida, "Comida", x);
+    x = itemTopo(iconeFerro, reino.estoque.ferro, "Ferro", x);
+    x = itemTopo(iconePovo, reino.populacao, "População", x);
+    itemTopo(iconeSoldado, reino.soldados, "Soldados", x);
 }
 
 void desenharBotao(const Botao& b) {
     bool sobre = mouseSobre(b.area);
-    Color fundo = sobre ? Color{74, 46, 32, 255} : Color{40, 32, 36, 255};
-    DrawRectangleRec(b.area, fundo);
-    DrawRectangleLinesEx(b.area, 2, sobre ? DOURADO : BORDA);
+    bool principal = b.acao == 6;
+    Color fundo = principal ? TELHADO_VERM : MADEIRA_ESCURA;
+    if (sobre) fundo = principal ? Color{214, 84, 64, 255} : MADEIRA;
+    Color corTexto = sobre ? DOURADO : TEXTO_CLARO;
+    int x = b.area.x, y = b.area.y, w = b.area.width;
 
-    const char* rotulo = TextFormat("[%d]  %s", b.acao, b.texto);
-    int x = static_cast<int>(b.area.x) + 18;
-    int y = static_cast<int>(b.area.y + b.area.height / 2) - 10;
-    DrawText(rotulo, x, y, 20, sobre ? DOURADO : TEXTO);
-}
-
-void desenharPainelOrdens() {
-    Rectangle painel = {770, 92, 320, 500};
-    DrawRectangleRec(painel, PAINEL);
-    DrawRectangleLinesEx(painel, 2, BORDA);
-    textoComSombra("Ordens do Reino", 800, 110, 24, DOURADO);
-
-    for (int i = 0; i < TOTAL_BOTOES; i++) {
-        desenharBotao(BOTOES[i]);
+    caixaComSombra(b.area, fundo);
+    DrawRectangle(x + 2, y + 1, w - 4, 1, Fade(TEXTO_CLARO, 0.25f));
+    if (principal) {   // ícone em cima, texto embaixo
+        b.icone(x + (w - 7) / 2, y + 4, 1);
+        desenharTextoSombra(b.texto, x + (w - larguraTexto(b.texto, 1)) / 2, y + 14, 1, corTexto);
+    } else {
+        b.icone(x + 4, y + 5, 1);
+        desenharTextoSombra(b.texto, x + 14, y + 5, 1, corTexto);
     }
 }
 
-void desenharBarraMensagem() {
-    if (tela.tempoMensagem <= 0) {
+// setinha balançando em cima da carta escolhida
+void desenharSeta(int x, int y) {
+    int pulo = static_cast<int>(sinf(tempo() * 6.0f) * 1.5f);
+    DrawRectangle(x - 2, y + pulo, 5, 1, DOURADO);
+    DrawRectangle(x - 1, y + 1 + pulo, 3, 1, DOURADO);
+    DrawRectangle(x, y + 2 + pulo, 1, 1, DOURADO);
+}
+
+void desenharCarta(int i, const Reino& reino) {
+    Rectangle r = areaCarta(i);
+    bool selecionada = i == tela.cartaSelecionada;
+    bool podeComprar = podePagar(reino, CARTAS[i]);
+    if (selecionada || mouseSobre(r)) r.y -= 5;    // a carta "sobe" na mão
+    int x = r.x, y = r.y;
+
+    caixaComSombra(r, PERGAMINHO);
+    DrawRectangle(x + 2, y + 2, 28, 26, PERGAMINHO_ESC);
+    DrawRectangle(x + 3, y + 3, 26, 24, (i % 2) ? GRAMA : GRAMA_ALT);
+    CARTAS[i].desenho(x + 5, y + 5, 1);
+    if (!podeComprar) DrawRectangle(x + 3, y + 3, 26, 24, Fade(CONTORNO, 0.45f));
+
+    iconeOuro(x + 5, y + 31, 1);
+    const char* custo = TextFormat("%d", CARTAS[i].ouro);
+    desenharTexto(custo, x + 14, y + 31, 1, podeComprar ? CONTORNO : TELHADO_VERM);
+    if (selecionada) {
+        DrawRectangleLinesEx({r.x - 1, r.y - 1, r.width + 2, r.height + 2}, 1, DOURADO);
+        desenharSeta(x + 16, y - 6);
+    }
+}
+
+int linhaCusto(Desenho icone, int custo, int tenho, int y) {
+    if (custo <= 0) return y;
+    icone(251, y, 1);
+    Color cor = tenho >= custo ? CONTORNO : TELHADO_VERM;
+    desenharTexto(TextFormat("%d", custo), 261, y, 1, cor);
+    return y + 10;
+}
+
+void desenharInfoCarta(const Carta& carta, const Reino& reino) {
+    const Recursos& r = reino.estoque;
+    desenharTexto(carta.nome, 251, 25, 1, VERMELHO_ESC);
+    DrawRectangle(251, 35, 60, 1, PERGAMINHO_ESC);
+    int y = linhaCusto(iconeOuro, carta.ouro, r.ouro, 39);
+    y = linhaCusto(iconeMadeira, carta.madeira, r.madeira, y);
+    y = linhaCusto(iconePedra, carta.pedra, r.pedra, y);
+    y = linhaCusto(iconeFerro, carta.ferro, r.ferro, y);
+    DrawRectangle(251, y + 2, 60, 1, PERGAMINHO_ESC);
+    desenharTexto(carta.efeito, 251, y + 7, 1, MADEIRA_ESCURA);
+}
+
+void desenharPainelInfo(const Reino& reino) {
+    caixaComSombra({246, 20, 70, 124}, PERGAMINHO);
+    DrawRectangle(248, 22, 66, 120, Fade(PERGAMINHO_ESC, 0.25f));
+    int i = cartaSobMouse();
+    if (i < 0) i = tela.cartaSelecionada;
+    if (i >= 0) {
+        desenharInfoCarta(CARTAS[i], reino);
         return;
     }
-    float alpha = tela.tempoMensagem > 1 ? 1.0f : tela.tempoMensagem;
-    Rectangle barra = {20, ALTURA - 62, 740, 44};
-    DrawRectangleRec(barra, Fade(PAINEL, alpha));
-    DrawRectangleLinesEx(barra, 1, Fade(BORDA, alpha));
-    DrawText(tela.mensagem.c_str(), 36, ALTURA - 50, 20, Fade(TEXTO, alpha));
+    desenharTexto("Ashenfall", 251, 25, 1, VERMELHO_ESC);
+    DrawRectangle(251, 35, 60, 1, PERGAMINHO_ESC);
+    desenharTexto("Escolha uma\ncarta e um\nlote livre.", 251, 40, 1, MADEIRA_ESCURA);
+    desenharTexto("Atalhos:\n1-5: cartas\nEspaço: fim", 251, 104, 1, PERGAMINHO_ESC);
 }
 
-void linhaRecurso(const char* nome, int valor, int y) {
-    DrawText(nome, 120, y, 22, TEXTO);
-    DrawText(TextFormat("%d", valor), 380, y, 22, DOURADO);
+void linhaRecurso(Desenho icone, const char* nome, int valor, int y) {
+    icone(108, y, 1);
+    desenharTexto(nome, 118, y, 1, CONTORNO);
+    const char* numero = TextFormat("%d", valor);
+    desenharTexto(numero, 212 - larguraTexto(numero, 1), y, 1, VERMELHO_ESC);
 }
 
 void desenharPainelRecursos(const Reino& reino) {
-    Rectangle painel = {90, 120, 400, 380};
-    DrawRectangleRec(painel, PAINEL);
-    DrawRectangleLinesEx(painel, 2, DOURADO);
-    textoComSombra("Tesouro do Reino", 120, 140, 26, DOURADO);
-
-    linhaRecurso("Ouro", reino.estoque.ouro, 195);
-    linhaRecurso("Madeira", reino.estoque.madeira, 231);
-    linhaRecurso("Pedra", reino.estoque.pedra, 267);
-    linhaRecurso("Comida", reino.estoque.comida, 303);
-    linhaRecurso("Ferro", reino.estoque.ferro, 339);
-    linhaRecurso("Populacao", reino.populacao, 375);
-    linhaRecurso("Soldados", reino.soldados, 411);
-    DrawText("ESC ou [3] para fechar", 120, 466, 16, TEXTO_FRACO);
+    caixaComSombra({100, 30, 120, 104}, PERGAMINHO);
+    desenharTexto("Tesouro do Reino", 108, 35, 1, VERMELHO_ESC);
+    DrawRectangle(108, 45, 104, 1, PERGAMINHO_ESC);
+    linhaRecurso(iconeOuro, "Ouro", reino.estoque.ouro, 50);
+    linhaRecurso(iconeMadeira, "Madeira", reino.estoque.madeira, 61);
+    linhaRecurso(iconePedra, "Pedra", reino.estoque.pedra, 72);
+    linhaRecurso(iconeComida, "Comida", reino.estoque.comida, 83);
+    linhaRecurso(iconeFerro, "Ferro", reino.estoque.ferro, 94);
+    linhaRecurso(iconePovo, "População", reino.populacao, 105);
+    linhaRecurso(iconeSoldado, "Soldados", reino.soldados, 116);
 }
 
-void desenharTransicaoTurno(int turno) {
-    if (tela.tempoTransicao <= 0) {
-        return;
-    }
-    float alpha = tela.tempoTransicao / 1.2f;
-    DrawRectangle(0, 0, LARGURA, ALTURA, Fade(BLACK, alpha * 0.6f));
-    textoCentralizado(TextFormat("TURNO %d", turno), ALTURA / 2 - 40, 72, Fade(DOURADO, alpha));
+void desenharMensagem() {
+    if (tela.tempoMensagem <= 0) return;
+    float alpha = tela.tempoMensagem > 1 ? 1.0f : tela.tempoMensagem;
+    const char* texto = tela.mensagem.c_str();
+    int largura = larguraTexto(texto, 1) + 12;
+    Rectangle r = {static_cast<float>((VL - largura) / 2), 116, static_cast<float>(largura), 14};
+    caixa(r, Fade(DOURADO_ESCURO, alpha), Fade(CONTORNO, alpha * 0.9f));
+    desenharTexto(texto, r.x + 6, 120, 1, Fade(TEXTO_CLARO, alpha));
 }
 
-// ---------------- telas ----------------
+void desenharDica() {
+    if (tela.dica == nullptr) return;
+    Vector2 m = mouseVirtual();
+    int largura = larguraTexto(tela.dica, 1) + 8;
+    int x = static_cast<int>(m.x) + 6;
+    if (x + largura > VL) x = VL - largura;
+    caixa({static_cast<float>(x), m.y + 6, static_cast<float>(largura), 13}, CONTORNO, PERGAMINHO);
+    desenharTexto(tela.dica, x + 4, static_cast<int>(m.y) + 9, 1, CONTORNO);
+}
+
+// faixa vermelha estilo estandarte
+void desenharFaixa(int x, int y, int largura, int altura) {
+    DrawRectangle(x - 8, y + 4, 10, altura, VERMELHO_ESC);           // pontas de trás
+    DrawRectangle(x + largura - 2, y + 4, 10, altura, VERMELHO_ESC);
+    caixa({static_cast<float>(x), static_cast<float>(y),
+           static_cast<float>(largura), static_cast<float>(altura)}, CONTORNO, TELHADO_VERM);
+    DrawRectangle(x + 1, y + altura - 3, largura - 2, 2, VERMELHO_ESC);
+    DrawRectangle(x + 2, y + 1, largura - 4, 1, Fade(TEXTO_CLARO, 0.3f));
+}
+
+void desenharTransicao(int turno) {
+    if (tela.tempoTransicao <= 0) return;
+    float alpha = tela.tempoTransicao > 0.4f ? 1.0f : tela.tempoTransicao / 0.4f;
+    DrawRectangle(0, 0, VL, VA, Fade(CONTORNO, alpha * 0.55f));
+    if (alpha < 1.0f) return;
+    desenharFaixa(100, 74, 120, 26);
+    const char* texto = TextFormat("Turno %d", turno);
+    desenharTextoContorno(texto, (VL - larguraTexto(texto, 2)) / 2, 80, 2,
+                          BRILHO_OURO, DOURADO, CONTORNO);
+}
+
+// ================= telas =================
+
+void desenharIlhaTitulo() {
+    DrawRectangle(106, 143, 112, 4, Fade(CONTORNO, 0.35f));
+    DrawRectangle(104, 131, 112, 8, GRAMA);
+    DrawRectangle(100, 133, 120, 4, GRAMA);
+    DrawRectangle(104, 139, 112, 4, TERRA);
+    DrawRectangle(104, 143, 112, 1, TERRA_ESCURA);
+    for (int i = 0; i < 112; i += 9) DrawRectangle(106 + i, 132 + i % 4, 1, 1, GRAMA_CLARA);
+}
 
 void desenharTelaTitulo() {
-    desenharCeu();
-    desenharLua(960, 110);
-    desenharColinas();
-    desenharCastelo(LARGURA / 2 - 150, CHAO, 1.1f);
+    desenharFundo();
+    desenharSombrasNuvens();
+    const int arvores[][2] = {{36, 92}, {66, 122}, {24, 140}, {252, 96}, {274, 128}, {228, 148}};
+    for (const auto& a : arvores) desenharArvore(a[0], a[1], 2);
+    desenharIlhaTitulo();
+    desenharCastelo(127, 74, 3);
     desenharBrasas();
 
-    textoCentralizado("KINGDOMS", 70, 96, DOURADO);
-    textoCentralizado("~ Ashes of the Fallen ~", 175, 30, TEXTO);
-    float pisca = 0.5f + 0.5f * sinf(tempo() * 2.5f);
-    textoCentralizado("Clique ou aperte ENTER para comecar", 632, 22, Fade(TEXTO, pisca));
+    int x = (VL - larguraTexto("KINGDOMS", 4)) / 2;
+    desenharTextoContorno("KINGDOMS", x, 10, 4, BRILHO_OURO, DOURADO_ESCURO, CONTORNO);
+    desenharFaixa(96, 46, 128, 15);
+    textoCentralizado("Ashes of the Fallen", 50, 1, TEXTO_CLARO);
+    if (static_cast<int>(tempo() * 2) % 2 == 0) {
+        textoCentralizado("Clique para começar", 158, 1, TEXTO_CLARO);
+    }
+    desenharTexto("Eduarda & Mateus", 4, 170, 1, Fade(TEXTO_CLARO, 0.35f));
+    desenharVinheta();
 }
 
 void desenharTelaReino(const Jogo& jogo) {
-    desenharCeu();
-    desenharLua(620, 160);
-    desenharColinas();
-    desenharCastelo(230, CHAO, 1.0f);
+    tela.dica = nullptr;
+    desenharFundo();
+    desenharArvoresEmVolta();
+    desenharGrade();
+    desenharSombrasNuvens();
     desenharBrasas();
+    desenharVinheta();
 
-    desenharBarraSuperior(jogo);
-    desenharPainelOrdens();
-    desenharBarraMensagem();
-    if (tela.painelRecursos) {
-        desenharPainelRecursos(jogo.reino);
-    }
-    desenharTransicaoTurno(jogo.turno);
+    for (int i = 0; i < TOTAL_BOTOES; i++) desenharBotao(BOTOES[i]);
+    desenharPainelInfo(jogo.reino);
+    for (int i = 0; i < TOTAL_CARTAS; i++) desenharCarta(i, jogo.reino);
+    desenharBarraTopo(jogo);
+    if (tela.painelRecursos) desenharPainelRecursos(jogo.reino);
+    desenharMensagem();
+    desenharDica();
+    desenharTransicao(jogo.turno);
 }
 
-// ---------------- entrada ----------------
+// ================= entrada =================
 
 void executarAcao(Jogo& jogo, int acao) {
     switch (acao) {
@@ -360,54 +525,81 @@ void executarAcao(Jogo& jogo, int acao) {
             tela.painelRecursos = !tela.painelRecursos;
             break;
         case 6:
+            tela.cartaSelecionada = -1;
             tela.painelRecursos = false;
             avisar(encerrarTurno(jogo));
-            tela.tempoTransicao = 1.2f;
+            tela.tempoTransicao = 1.3f;
             break;
         case 0:
             jogo.rodando = false;
             break;
         default:
-            avisar("Essa ala do castelo ainda esta em obras.");
+            avisar("Essa parte do reino ainda está em obras.");
             break;
     }
 }
 
-// devolve a acao do botao clicado (ou da tecla), -1 se nada
-int acaoEscolhida() {
-    bool clique = IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
+void cliqueNoLote(int linha, int coluna) {
+    if (!loteLiberado(linha, coluna)) {
+        avisar("Floresta fechada. Expanda o reino primeiro.");
+    } else if (ehCastelo(linha, coluna)) {
+        avisar("O castelo de Ashenfall.");
+    } else if (tela.cartaSelecionada < 0) {
+        avisar("Escolha uma carta lá embaixo.");
+    } else {
+        avisar("Construir chega na etapa da economia.");
+    }
+}
+
+void tratarClique(Jogo& jogo) {
+    int carta = cartaSobMouse();
+    if (carta >= 0) {
+        tela.cartaSelecionada = (carta == tela.cartaSelecionada) ? -1 : carta;
+        return;
+    }
+    int linha, coluna;
+    if (loteSobMouse(linha, coluna)) {
+        cliqueNoLote(linha, coluna);
+        return;
+    }
     for (int i = 0; i < TOTAL_BOTOES; i++) {
-        const Botao& b = BOTOES[i];
-        if ((clique && mouseSobre(b.area)) || IsKeyPressed(b.tecla)) {
-            return b.acao;
+        if (mouseSobre(BOTOES[i].area)) {
+            executarAcao(jogo, BOTOES[i].acao);
+            return;
         }
     }
-    return -1;
+}
+
+// teclas 1 a 5 escolhem a carta direto
+void tratarTeclasCartas() {
+    for (int i = 0; i < TOTAL_CARTAS; i++) {
+        if (IsKeyPressed(KEY_ONE + i)) {
+            tela.cartaSelecionada = (tela.cartaSelecionada == i) ? -1 : i;
+        }
+    }
 }
 
 void atualizarTelaReino(Jogo& jogo) {
-    if (IsKeyPressed(KEY_ESCAPE)) {
+    if (IsKeyPressed(KEY_ESCAPE) || IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+        tela.cartaSelecionada = -1;
         tela.painelRecursos = false;
     }
-    if (tela.tempoTransicao > 0) {
-        return;   // segura os cliques enquanto o "TURNO X" aparece
-    }
-    int acao = acaoEscolhida();
-    if (acao >= 0) {
-        executarAcao(jogo, acao);
-    }
+    if (tela.tempoTransicao > 0) return;   // espera o "Turno X" sumir
+
+    tratarTeclasCartas();
+    if (IsKeyPressed(KEY_SPACE)) executarAcao(jogo, 6);
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) tratarClique(jogo);
 }
 
-}  // fim do namespace anonimo
+}  // fim do namespace anônimo
 
 void abrirJanela() {
-    SetConfigFlags(FLAG_MSAA_4X_HINT);
-    InitWindow(LARGURA, ALTURA, "Kingdoms: Ashes of the Fallen");
-    SetExitKey(KEY_NULL);   // ESC fecha painel, nao o jogo
+    InitWindow(VL * ESCALA, VA * ESCALA, "Kingdoms: Ashes of the Fallen");
+    SetExitKey(KEY_NULL);   // ESC cancela a carta, não fecha o jogo
     SetTargetFPS(60);
-    for (Brasa& b : tela.brasas) {
-        reiniciarBrasa(b, true);
-    }
+    alvo = LoadRenderTexture(VL, VA);
+    SetTextureFilter(alvo.texture, TEXTURE_FILTER_POINT);
+    for (Brasa& b : tela.brasas) reiniciarBrasa(b, true);
 }
 
 bool janelaAberta() {
@@ -415,6 +607,7 @@ bool janelaAberta() {
 }
 
 void fecharJanela() {
+    UnloadRenderTexture(alvo);
     CloseWindow();
 }
 
@@ -434,12 +627,18 @@ void atualizarInterface(Jogo& jogo) {
 }
 
 void desenharInterface(const Jogo& jogo) {
-    BeginDrawing();
-    ClearBackground(BLACK);
+    BeginTextureMode(alvo);
     if (tela.atual == TELA_TITULO) {
         desenharTelaTitulo();
     } else {
         desenharTelaReino(jogo);
     }
+    EndTextureMode();
+
+    // a textura vem de cabeça pra baixo, por isso a altura negativa
+    BeginDrawing();
+    Rectangle origem = {0, 0, static_cast<float>(VL), -static_cast<float>(VA)};
+    Rectangle destino = {0, 0, static_cast<float>(VL * ESCALA), static_cast<float>(VA * ESCALA)};
+    DrawTexturePro(alvo.texture, origem, destino, {0, 0}, 0.0f, WHITE);
     EndDrawing();
 }

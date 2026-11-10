@@ -13,7 +13,7 @@ struct Jogo {
 
 void iniciarJogo(Jogo& jogo);
 
-// Avanca o reino um turno e devolve um resumo pra mostrar na tela
+// Avança o reino um turno e devolve um resumo pra mostrar na tela
 std::string encerrarTurno(Jogo& jogo);
 
 #endif

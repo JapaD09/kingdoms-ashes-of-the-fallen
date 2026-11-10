@@ -18,14 +18,15 @@ Com a raylib instalada no sistema, é só rodar `make` e depois `./kingdoms`.
 
 ## Como jogar
 
-Clique nos botões do painel **Ordens do Reino** ou use as teclas de 0 a 6.
-Consultar recursos não gasta turno; o reino só avança quando você escolhe **Encerrar turno**.
-`ESC` fecha os painéis abertos.
+O reino é uma grade 5x5 com o castelo no meio; no começo só o 3x3 central está liberado.
+Clique numa carta de construção (embaixo) e depois num lote livre. Os botões da esquerda
+abrem as outras partes do jogo e **Fim do turno** (ou `Espaço`) avança o reino.
+Botão direito ou `ESC` cancelam a carta escolhida.
 
 ## Andamento
 
 - [x] Etapa 1 — esqueleto, menu principal e validação de entrada
-- [x] Interface gráfica — tela de título, painel de recursos e botões
+- [x] Interface gráfica em pixel art — título, grade do reino, cartas e painéis
 - [ ] Etapa 3 — economia (produção, consumo, construções)
 - [ ] Etapa 4 — lista encadeada de edifícios
 - [ ] Etapa 5 — pilha e fila
@@ -40,7 +41,10 @@ Consultar recursos não gasta turno; o reino só avança quando você escolhe **
 |---|---|
 | `main.cpp` | Ponto de entrada |
 | `jogo.h/.cpp` | Estado da partida e regras de turno |
-| `interface.h/.cpp` | Janela, desenhos e cliques (raylib) |
+| `interface.h/.cpp` | Janela, telas e cliques (raylib) |
+| `fonte.h/.cpp` | Fonte própria em pixel art, com acentos |
+| `sprites.h/.cpp` | Desenhos do castelo, construções e ícones |
+| `paleta.h` | Cores do jogo |
 | `reino.h/.cpp` | Recursos, população e exército |
 | `expedicao.h/.cpp` | Mapa, nós e saque |
 | `combate.h/.cpp` | Inimigos, dano e recompensas |
