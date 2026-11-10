@@ -8,9 +8,13 @@ void iniciarJogo(Jogo& jogo) {
     iniciarReino(jogo.reino);
 }
 
-// Por enquanto o turno só conta. Produção e consumo entram na etapa 3.
+void encerrarJogo(Jogo& jogo) {
+    liberarReino(jogo.reino);
+}
+
+// Ordem do guia: produção -> consumo -> consequências -> avança o turno
 string encerrarTurno(Jogo& jogo) {
+    string resumo = processarTurnoReino(jogo.reino);
     jogo.turno++;
-    return "O sol se pôs sobre " + jogo.nomeReino
-         + ". Começa o turno " + to_string(jogo.turno) + ".";
+    return "Turno " + to_string(jogo.turno) + ": " + resumo;
 }

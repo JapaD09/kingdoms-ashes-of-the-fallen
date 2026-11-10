@@ -1,5 +1,5 @@
 // Kingdoms: Ashes of the Fallen
-// Projeto Final - Programacao e Sistemas Computacionais II
+// Projeto Final - Programação e Sistemas Computacionais II
 // Eduarda e Mateus
 
 #include "jogo.h"
@@ -15,6 +15,7 @@ int main() {
         desenharInterface(jogo);
     }
     fecharJanela();
+    encerrarJogo(jogo);
 
     return 0;
 }

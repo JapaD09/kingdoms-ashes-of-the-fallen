@@ -10,7 +10,6 @@
 #include "sprites.h"
 #include "raylib.h"
 #include <cmath>
-#include <cstdlib>
 #include <string>
 
 using namespace std;
@@ -34,9 +33,10 @@ struct Brasa {
     float velocidade;
 };
 
+// Carta = um tipo de edifício. Nome e custo vêm do catálogo do reino;
+// aqui só fica o que é visual.
 struct Carta {
-    const char* nome;
-    int ouro, madeira, pedra, ferro;
+    int tipo;
     const char* efeito;
     Desenho desenho;
 };
@@ -63,11 +63,11 @@ EstadoTela tela;
 RenderTexture2D alvo;
 
 const Carta CARTAS[] = {
-    {"Fazenda", 30, 20, 0, 0, "+8 comida\npor turno", desenharFazenda},
-    {"Serraria", 35, 15, 0, 0, "+6 madeira\npor turno", desenharSerraria},
-    {"Quartel", 50, 30, 10, 0, "libera\nrecrutar", desenharQuartel},
-    {"Muralha", 40, 0, 25, 0, "+defesa\ndo reino", desenharMuralha},
-    {"Oficina", 45, 20, 0, 15, "armas e\narmaduras", desenharOficina},
+    {FAZENDA, "+8 comida\npor turno", desenharFazenda},
+    {SERRARIA, "+6 madeira\npor turno", desenharSerraria},
+    {QUARTEL, "libera\nrecrutar", desenharQuartel},
+    {MURALHA, "+5 defesa\ndo reino", desenharMuralha},
+    {OFICINA, "armas e\narmaduras", desenharOficina},
 };
 const int TOTAL_CARTAS = sizeof(CARTAS) / sizeof(CARTAS[0]);
 
@@ -120,17 +120,7 @@ void avisar(const string& mensagem) {
 }
 
 bool podePagar(const Reino& reino, const Carta& carta) {
-    const Recursos& r = reino.estoque;
-    return r.ouro >= carta.ouro && r.madeira >= carta.madeira
-        && r.pedra >= carta.pedra && r.ferro >= carta.ferro;
-}
-
-bool loteLiberado(int linha, int coluna) {
-    return abs(linha - 2) <= 1 && abs(coluna - 2) <= 1;
-}
-
-bool ehCastelo(int linha, int coluna) {
-    return linha == 2 && coluna == 2;
+    return temRecursos(reino.estoque, modeloEdificio(carta.tipo).custo);
 }
 
 Rectangle areaLote(int linha, int coluna) {
@@ -261,11 +251,15 @@ void desenharPlanalto() {
     DrawRectangleLines(x - 1, y - 1, lado + 2, lado + 8, CONTORNO);
 }
 
-void desenharDestaqueLote() {
+void desenharDestaqueLote(const Reino& reino) {
     int linha, coluna;
     if (!loteSobMouse(linha, coluna)) return;
     Rectangle r = areaLote(linha, coluna);
-    bool podeConstruir = loteLiberado(linha, coluna) && !ehCastelo(linha, coluna);
+    const Edificio* ocupante = buscarEdificioNoLote(reino.edificios, linha, coluna);
+    if (ocupante != nullptr) tela.dica = modeloEdificio(ocupante->tipo).nome;
+    if (ehCastelo(linha, coluna)) tela.dica = "Castelo";
+    bool podeConstruir = loteLiberado(linha, coluna) && !ehCastelo(linha, coluna)
+                      && ocupante == nullptr;
     float pulso = 0.55f + 0.45f * sinf(tempo() * 6.0f);
 
     if (tela.cartaSelecionada >= 0 && podeConstruir) {
@@ -277,7 +271,16 @@ void desenharDestaqueLote() {
     DrawRectangleLinesEx(r, 1, Fade(TEXTO_CLARO, 0.6f));
 }
 
-void desenharGrade() {
+// percorre a lista encadeada e desenha cada edifício no seu lote
+void desenharEdificios(const Reino& reino) {
+    for (NoEdificio* no = reino.edificios.primeiro; no != nullptr; no = no->proximo) {
+        const Edificio& e = no->dados;
+        Rectangle r = areaLote(e.linha, e.coluna);
+        CARTAS[e.tipo].desenho(r.x, r.y, 1);
+    }
+}
+
+void desenharGrade(const Reino& reino) {
     desenharPlanalto();
     for (int l = 0; l < GRADE; l++) {
         for (int c = 0; c < GRADE; c++) {
@@ -285,7 +288,8 @@ void desenharGrade() {
         }
     }
     desenharCastelo(GRADE_X + 2 * LOTE, GRADE_Y + 2 * LOTE, 1);
-    desenharDestaqueLote();
+    desenharEdificios(reino);
+    desenharDestaqueLote(reino);
 }
 
 // ================= HUD =================
@@ -363,7 +367,7 @@ void desenharCarta(int i, const Reino& reino) {
     if (!podeComprar) DrawRectangle(x + 3, y + 3, 26, 24, Fade(CONTORNO, 0.45f));
 
     iconeOuro(x + 5, y + 31, 1);
-    const char* custo = TextFormat("%d", CARTAS[i].ouro);
+    const char* custo = TextFormat("%d", modeloEdificio(CARTAS[i].tipo).custo.ouro);
     desenharTexto(custo, x + 14, y + 31, 1, podeComprar ? CONTORNO : TELHADO_VERM);
     if (selecionada) {
         DrawRectangleLinesEx({r.x - 1, r.y - 1, r.width + 2, r.height + 2}, 1, DOURADO);
@@ -381,14 +385,42 @@ int linhaCusto(Desenho icone, int custo, int tenho, int y) {
 
 void desenharInfoCarta(const Carta& carta, const Reino& reino) {
     const Recursos& r = reino.estoque;
-    desenharTexto(carta.nome, 251, 25, 1, VERMELHO_ESC);
+    const ModeloEdificio& modelo = modeloEdificio(carta.tipo);
+    desenharTexto(modelo.nome, 251, 25, 1, VERMELHO_ESC);
     DrawRectangle(251, 35, 60, 1, PERGAMINHO_ESC);
-    int y = linhaCusto(iconeOuro, carta.ouro, r.ouro, 39);
-    y = linhaCusto(iconeMadeira, carta.madeira, r.madeira, y);
-    y = linhaCusto(iconePedra, carta.pedra, r.pedra, y);
-    y = linhaCusto(iconeFerro, carta.ferro, r.ferro, y);
+    int y = linhaCusto(iconeOuro, modelo.custo.ouro, r.ouro, 39);
+    y = linhaCusto(iconeMadeira, modelo.custo.madeira, r.madeira, y);
+    y = linhaCusto(iconePedra, modelo.custo.pedra, r.pedra, y);
+    y = linhaCusto(iconeFerro, modelo.custo.ferro, r.ferro, y);
     DrawRectangle(251, y + 2, 60, 1, PERGAMINHO_ESC);
     desenharTexto(carta.efeito, 251, y + 7, 1, MADEIRA_ESCURA);
+}
+
+// mostra +X / -X com a cor certa (verde ganhando, vermelho perdendo)
+int linhaPrevisao(Desenho icone, int valor, int y) {
+    if (valor == 0) return y;
+    icone(251, y, 1);
+    Color cor = valor > 0 ? FOLHA : TELHADO_VERM;
+    desenharTexto(TextFormat("%+d", valor), 261, y, 1, cor);
+    return y + 10;
+}
+
+void desenharResumoReino(const Reino& reino) {
+    desenharTexto("Ashenfall", 251, 25, 1, VERMELHO_ESC);
+    DrawRectangle(251, 35, 60, 1, PERGAMINHO_ESC);
+    desenharTexto("Por turno:", 251, 39, 1, MADEIRA_ESCURA);
+
+    Recursos p = previsaoDoTurno(reino);
+    int y = linhaPrevisao(iconeOuro, p.ouro, 50);
+    y = linhaPrevisao(iconeMadeira, p.madeira, y);
+    y = linhaPrevisao(iconePedra, p.pedra, y);
+    y = linhaPrevisao(iconeComida, p.comida, y);
+    y = linhaPrevisao(iconeFerro, p.ferro, y);
+
+    DrawRectangle(251, y + 2, 60, 1, PERGAMINHO_ESC);
+    desenharTexto(TextFormat("Edifícios: %d", reino.edificios.tamanho), 251, y + 7, 1, MADEIRA_ESCURA);
+    desenharTexto(TextFormat("Defesa: %d", reino.defesa), 251, y + 18, 1, MADEIRA_ESCURA);
+    desenharTexto("1-5: cartas\nEspaço: fim", 251, 115, 1, PERGAMINHO_ESC);
 }
 
 void desenharPainelInfo(const Reino& reino) {
@@ -400,10 +432,7 @@ void desenharPainelInfo(const Reino& reino) {
         desenharInfoCarta(CARTAS[i], reino);
         return;
     }
-    desenharTexto("Ashenfall", 251, 25, 1, VERMELHO_ESC);
-    DrawRectangle(251, 35, 60, 1, PERGAMINHO_ESC);
-    desenharTexto("Escolha uma\ncarta e um\nlote livre.", 251, 40, 1, MADEIRA_ESCURA);
-    desenharTexto("Atalhos:\n1-5: cartas\nEspaço: fim", 251, 104, 1, PERGAMINHO_ESC);
+    desenharResumoReino(reino);
 }
 
 void linhaRecurso(Desenho icone, const char* nome, int valor, int y) {
@@ -502,7 +531,7 @@ void desenharTelaReino(const Jogo& jogo) {
     tela.dica = nullptr;
     desenharFundo();
     desenharArvoresEmVolta();
-    desenharGrade();
+    desenharGrade(jogo.reino);
     desenharSombrasNuvens();
     desenharBrasas();
     desenharVinheta();
@@ -539,16 +568,29 @@ void executarAcao(Jogo& jogo, int acao) {
     }
 }
 
-void cliqueNoLote(int linha, int coluna) {
-    if (!loteLiberado(linha, coluna)) {
-        avisar("Floresta fechada. Expanda o reino primeiro.");
-    } else if (ehCastelo(linha, coluna)) {
+void cliqueNoLote(Reino& reino, int linha, int coluna) {
+    const Edificio* ocupante = buscarEdificioNoLote(reino.edificios, linha, coluna);
+    if (ehCastelo(linha, coluna)) {
         avisar("O castelo de Ashenfall.");
+    } else if (ocupante != nullptr && tela.cartaSelecionada < 0) {
+        avisar(string(modeloEdificio(ocupante->tipo).nome) + ". Botão direito demole.");
     } else if (tela.cartaSelecionada < 0) {
         avisar("Escolha uma carta lá embaixo.");
     } else {
-        avisar("Construir chega na etapa da economia.");
+        avisar(construirEdificio(reino, CARTAS[tela.cartaSelecionada].tipo, linha, coluna));
     }
+}
+
+// botão direito: em cima de um edifício demole, em qualquer outro lugar cancela a carta
+void cliqueDireito(Reino& reino) {
+    int linha, coluna;
+    bool emLote = loteSobMouse(linha, coluna);
+    if (emLote && buscarEdificioNoLote(reino.edificios, linha, coluna) != nullptr) {
+        avisar(demolirEdificio(reino, linha, coluna));
+        return;
+    }
+    tela.cartaSelecionada = -1;
+    tela.painelRecursos = false;
 }
 
 void tratarClique(Jogo& jogo) {
@@ -559,7 +601,7 @@ void tratarClique(Jogo& jogo) {
     }
     int linha, coluna;
     if (loteSobMouse(linha, coluna)) {
-        cliqueNoLote(linha, coluna);
+        cliqueNoLote(jogo.reino, linha, coluna);
         return;
     }
     for (int i = 0; i < TOTAL_BOTOES; i++) {
@@ -580,12 +622,13 @@ void tratarTeclasCartas() {
 }
 
 void atualizarTelaReino(Jogo& jogo) {
-    if (IsKeyPressed(KEY_ESCAPE) || IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+    if (IsKeyPressed(KEY_ESCAPE)) {
         tela.cartaSelecionada = -1;
         tela.painelRecursos = false;
     }
     if (tela.tempoTransicao > 0) return;   // espera o "Turno X" sumir
 
+    if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) cliqueDireito(jogo.reino);
     tratarTeclasCartas();
     if (IsKeyPressed(KEY_SPACE)) executarAcao(jogo, 6);
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) tratarClique(jogo);
