@@ -96,7 +96,67 @@ static void testarTurno() {
     liberarReino(reino);
 }
 
+static void testarPilhaEFila() {
+    cout << "Pilha e fila\n";
+    PilhaAcoes pilha;
+    Acao a;
+    conferir(!desempilhar(pilha, a), "pilha vazia nao desempilha");
+    for (int i = 1; i <= 3; i++) {
+        a.edificio.id = i;
+        empilhar(pilha, a);
+    }
+    conferir(topoDaPilha(pilha)->edificio.id == 3, "topo e o ultimo que entrou");
+    desempilhar(pilha, a);
+    conferir(a.edificio.id == 3 && pilha.tamanho == 2, "LIFO: sai o 3");
+    limparPilha(pilha);
+    conferir(pilhaVazia(pilha), "limpar esvazia a pilha");
+
+    FilaConstrucao fila;
+    OrdemConstrucao o;
+    conferir(!desenfileirar(fila, o), "fila vazia nao desenfileira");
+    for (int i = 0; i < 3; i++) {
+        o.tipoEdificio = i;
+        enfileirar(fila, o);
+    }
+    desenfileirar(fila, o);
+    conferir(o.tipoEdificio == 0 && fila.tamanho == 2, "FIFO: sai o primeiro");
+    desenfileirar(fila, o);
+    desenfileirar(fila, o);
+    conferir(filaVazia(fila) && fila.fim == nullptr, "fila esvaziou certinho");
+}
+
+static void testarDesfazerEOrdens() {
+    cout << "Desfazer e ordens\n";
+    Reino reino;
+    iniciarReino(reino);
+    Recursos antes = reino.estoque;
+    construirEdificio(reino, FAZENDA, 1, 1);
+    desfazerUltimaAcao(reino);
+    conferir(reino.edificios.tamanho == 0 && reino.estoque.ouro == antes.ouro, "desfazer construcao devolve tudo");
+
+    construirEdificio(reino, FAZENDA, 1, 1);
+    demolirEdificio(reino, 1, 1);
+    desfazerUltimaAcao(reino);
+    conferir(reino.edificios.tamanho == 1, "desfazer demolicao traz de volta");
+
+    processarTurnoReino(reino);
+    conferir(pilhaVazia(reino.historico), "virou turno, pilha limpa");
+
+    reino.estoque = {0, 0, 0, 100, 0};
+    agendarConstrucao(reino, SERRARIA, 1, 2);
+    agendarConstrucao(reino, FAZENDA, 1, 3);
+    conferir(reino.ordens.tamanho == 2, "duas ordens na fila");
+    processarFila(reino);
+    conferir(reino.ordens.tamanho == 2, "sem recurso a fila espera");
+    reino.estoque = {80, 40, 0, 100, 0};
+    processarFila(reino);
+    conferir(reino.ordens.tamanho == 0 && reino.edificios.tamanho == 3, "com recurso constroi na ordem");
+    liberarReino(reino);
+}
+
 int main() {
+    testarPilhaEFila();
+    testarDesfazerEOrdens();
     testarLista();
     testarConstrucao();
     testarTurno();

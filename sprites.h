@@ -27,5 +27,7 @@ void iconeLivro(int x, int y, int s);
 void iconeBau(int x, int y, int s);
 void iconePorta(int x, int y, int s);
 void iconeAmpulheta(int x, int y, int s);
+void iconeDesfazer(int x, int y, int s);
+void iconeVista(int x, int y, int s);
 
 #endif

@@ -77,6 +77,7 @@ const Botao BOTOES[] = {
     {{4, 42, 70, 17}, "Expedição", 4, iconeMapa},
     {{4, 62, 70, 17}, "Catálogo", 5, iconeLivro},
     {{4, 82, 70, 17}, "Recursos", 3, iconeBau},
+    {{4, 102, 70, 17}, "Desfazer", 7, iconeDesfazer},
     {{246, 150, 70, 27}, "Fim do turno", 6, iconeAmpulheta},
     {{4, 160, 44, 17}, "Sair", 0, iconePorta},
 };
@@ -265,6 +266,19 @@ void desenharEdificios(const Reino& reino) {
     }
 }
 
+// ordens da fila aparecem como prédio "fantasma" com a posição
+void desenharFilaNoMapa(const Reino& reino) {
+    int posicao = 1;
+    for (NoFila* no = reino.ordens.inicio; no != nullptr; no = no->proximo, posicao++) {
+        Rectangle r = areaLote(no->ordem.linha, no->ordem.coluna);
+        CARTAS[no->ordem.tipoEdificio].desenho(r.x, r.y, 1);
+        DrawRectangleRec(r, Fade(GRAMA, 0.55f));
+        DrawRectangleLinesEx(r, 1, Fade(DOURADO, 0.8f));
+        DrawRectangle(r.x + 15, r.y + 1, 6, 9, CONTORNO);
+        desenharTexto(TextFormat("%d", posicao), r.x + 16, r.y + 2, 1, DOURADO);
+    }
+}
+
 void desenharGrade(const Reino& reino) {
     desenharPlanalto();
     for (int l = 0; l < GRADE; l++) {
@@ -274,6 +288,7 @@ void desenharGrade(const Reino& reino) {
     }
     desenharCastelo(GRADE_X + 2 * LOTE, GRADE_Y + 2 * LOTE, 1);
     desenharEdificios(reino);
+    desenharFilaNoMapa(reino);
     desenharGalinhas(tempo());
     desenharFumaca();
     desenharDestaqueLote(reino);
@@ -407,7 +422,8 @@ void desenharResumoReino(const Reino& reino) {
     DrawRectangle(251, y + 2, 60, 1, PERGAMINHO_ESC);
     desenharTexto(TextFormat("Edifícios: %d", reino.edificios.tamanho), 251, y + 7, 1, MADEIRA_ESCURA);
     desenharTexto(TextFormat("Defesa: %d", reino.defesa), 251, y + 18, 1, MADEIRA_ESCURA);
-    desenharTexto("1-5: cartas\nEspaço: fim", 251, 115, 1, PERGAMINHO_ESC);
+    desenharTexto(TextFormat("Na fila: %d", reino.ordens.tamanho), 251, y + 29, 1, MADEIRA_ESCURA);
+    desenharTexto("1-5: cartas\nZ: desfazer", 251, 122, 1, PERGAMINHO_ESC);
 }
 
 void desenharPainelInfo(const Reino& reino) {
@@ -546,6 +562,9 @@ void executarAcao(Jogo& jogo, int acao) {
         case 0:
             jogo.rodando = false;
             break;
+        case 7:
+            avisar(desfazerUltimaAcao(jogo.reino));
+            break;
         default:
             avisar("Essa parte do reino ainda está em obras.");
             break;
@@ -561,7 +580,11 @@ void cliqueNoLote(Reino& reino, int linha, int coluna) {
     } else if (tela.cartaSelecionada < 0) {
         avisar("Escolha uma carta lá embaixo.");
     } else {
-        avisar(construirEdificio(reino, CARTAS[tela.cartaSelecionada].tipo, linha, coluna));
+        int tipo = CARTAS[tela.cartaSelecionada].tipo;
+        string problema = validarConstrucao(reino, tipo, linha, coluna);
+        bool soFaltaRecurso = problema.rfind("Recursos insuficientes", 0) == 0;
+        avisar(soFaltaRecurso ? agendarConstrucao(reino, tipo, linha, coluna)
+                              : construirEdificio(reino, tipo, linha, coluna));
     }
 }
 
@@ -652,6 +675,7 @@ void atualizarTelaReino(Jogo& jogo) {
     if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) cliqueDireito(jogo.reino);
     tratarTeclasCartas();
     if (IsKeyPressed(KEY_SPACE)) executarAcao(jogo, 6);
+    if (IsKeyPressed(KEY_Z)) executarAcao(jogo, 7);
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) tratarClique(jogo);
 }
 

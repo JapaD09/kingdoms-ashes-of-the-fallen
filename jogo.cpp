@@ -14,6 +14,8 @@ void encerrarJogo(Jogo& jogo) {
 
 string encerrarTurno(Jogo& jogo) {
     string resumo = processarTurnoReino(jogo.reino);
+    string fila = processarFila(jogo.reino);
     jogo.turno++;
-    return "Turno " + to_string(jogo.turno) + ": " + resumo;
+    string texto = "Turno " + to_string(jogo.turno) + ": " + resumo;
+    return fila.empty() ? texto : texto + "  " + fila;
 }

@@ -57,11 +57,13 @@ void iniciarReino(Reino& reino) {
     reino.soldados = 6;
     reino.defesa = 0;
     reino.proximoIdEdificio = 1;
-    liberarEdificios(reino.edificios);
+    liberarReino(reino);
 }
 
 void liberarReino(Reino& reino) {
     liberarEdificios(reino.edificios);
+    limparPilha(reino.historico);
+    limparFila(reino.ordens);
 }
 
 const ModeloEdificio& modeloEdificio(int tipo) {
@@ -82,12 +84,16 @@ bool temRecursos(const Recursos& estoque, const Recursos& custo) {
         && estoque.ferro >= custo.ferro;
 }
 
-string validarConstrucao(const Reino& reino, int tipo, int linha, int coluna) {
+// motivo pra não construir ("" = pode). A fila não se bloqueia sozinha.
+static string motivoBloqueio(const Reino& reino, int tipo, int linha, int coluna, bool olharFila) {
     if (tipo < 0 || tipo >= TOTAL_TIPOS_EDIFICIO) return "Edifício desconhecido.";
     if (!loteLiberado(linha, coluna)) return "Floresta fechada. Expanda o reino primeiro.";
     if (ehCastelo(linha, coluna)) return "Esse lote é do castelo.";
     if (buscarEdificioNoLote(reino.edificios, linha, coluna) != nullptr) {
         return "Esse lote já está ocupado.";
+    }
+    if (olharFila && loteNaFila(reino.ordens, linha, coluna)) {
+        return "Esse lote já tem uma ordem na fila.";
     }
     if (!temRecursos(reino.estoque, MODELOS[tipo].custo)) {
         return "Recursos insuficientes para " + string(MODELOS[tipo].nome) + ".";
@@ -95,10 +101,12 @@ string validarConstrucao(const Reino& reino, int tipo, int linha, int coluna) {
     return "";
 }
 
-string construirEdificio(Reino& reino, int tipo, int linha, int coluna) {
-    string problema = validarConstrucao(reino, tipo, linha, coluna);
-    if (!problema.empty()) return problema;
+string validarConstrucao(const Reino& reino, int tipo, int linha, int coluna) {
+    return motivoBloqueio(reino, tipo, linha, coluna, true);
+}
 
+// cobra e coloca na lista (sem validar)
+static Edificio erguer(Reino& reino, int tipo, int linha, int coluna) {
     const ModeloEdificio& modelo = MODELOS[tipo];
     somar(reino.estoque, modelo.custo, -1);
     reino.defesa += modelo.defesa;
@@ -109,7 +117,18 @@ string construirEdificio(Reino& reino, int tipo, int linha, int coluna) {
     novo.linha = linha;
     novo.coluna = coluna;
     inserirEdificio(reino.edificios, novo);
-    return "Nova construção: " + string(modelo.nome) + ".";
+    return novo;
+}
+
+string construirEdificio(Reino& reino, int tipo, int linha, int coluna) {
+    string problema = validarConstrucao(reino, tipo, linha, coluna);
+    if (!problema.empty()) return problema;
+
+    Acao acao;
+    acao.tipo = CONSTRUIU;
+    acao.edificio = erguer(reino, tipo, linha, coluna);
+    empilhar(reino.historico, acao);
+    return "Nova construção: " + string(MODELOS[tipo].nome) + ".";
 }
 
 // devolve metade do ouro
@@ -122,9 +141,69 @@ string demolirEdificio(Reino& reino, int linha, int coluna) {
     reino.estoque.ouro += reembolso;
     reino.defesa -= modelo.defesa;
 
+    Acao acao;
+    acao.tipo = DEMOLIU;
+    acao.edificio = *alvo;          // copia antes de remover
+    acao.ouroDevolvido = reembolso;
+    empilhar(reino.historico, acao);
+
     string nome = modelo.nome;
     removerEdificio(reino.edificios, alvo->id);
     return "Demolição: " + nome + ". Voltaram " + to_string(reembolso) + " de ouro.";
+}
+
+string desfazerUltimaAcao(Reino& reino) {
+    const Acao* topo = topoDaPilha(reino.historico);
+    if (topo == nullptr) return "Nada pra desfazer neste turno.";
+    if (topo->tipo == DEMOLIU && reino.estoque.ouro < topo->ouroDevolvido) {
+        return "Precisa devolver o ouro da demolição pra desfazer.";
+    }
+    Acao acao;
+    desempilhar(reino.historico, acao);
+    const ModeloEdificio& modelo = MODELOS[acao.edificio.tipo];
+    if (acao.tipo == CONSTRUIU) {
+        removerEdificio(reino.edificios, acao.edificio.id);
+        somar(reino.estoque, modelo.custo);         // devolve tudo
+        reino.defesa -= modelo.defesa;
+        return "Desfeito: " + string(modelo.nome) + " (recursos devolvidos).";
+    }
+    inserirEdificio(reino.edificios, acao.edificio);
+    reino.estoque.ouro -= acao.ouroDevolvido;
+    reino.defesa += modelo.defesa;
+    return "Desfeito: " + string(modelo.nome) + " voltou.";
+}
+
+string agendarConstrucao(Reino& reino, int tipo, int linha, int coluna) {
+    string problema = motivoBloqueio(reino, tipo, linha, coluna, true);
+    bool soFaltaRecurso = problema.rfind("Recursos insuficientes", 0) == 0;
+    if (!problema.empty() && !soFaltaRecurso) return problema;
+
+    OrdemConstrucao ordem;
+    ordem.tipoEdificio = tipo;
+    ordem.linha = linha;
+    ordem.coluna = coluna;
+    enfileirar(reino.ordens, ordem);
+    return string(MODELOS[tipo].nome) + " na fila (posição " + to_string(reino.ordens.tamanho) + ").";
+}
+
+// Regra: a primeira ordem espera até ter recurso; as de trás não passam na frente.
+// Se o lote da ordem ficou ocupado, ela é cancelada.
+string processarFila(Reino& reino) {
+    string resumo;
+    while (!filaVazia(reino.ordens)) {
+        const OrdemConstrucao* frente = frenteDaFila(reino.ordens);
+        string problema = motivoBloqueio(reino, frente->tipoEdificio, frente->linha, frente->coluna, false);
+        bool faltaRecurso = problema.rfind("Recursos insuficientes", 0) == 0;
+        if (faltaRecurso) break;
+
+        OrdemConstrucao ordem;
+        desenfileirar(reino.ordens, ordem);
+        if (!problema.empty()) continue;            // lote ocupado: cancela
+        erguer(reino, ordem.tipoEdificio, ordem.linha, ordem.coluna);
+        if (!resumo.empty()) resumo += ", ";
+        resumo += MODELOS[ordem.tipoEdificio].nome;
+    }
+    return resumo.empty() ? "" : "Da fila: " + resumo + ".";
 }
 
 // soma a produção de todos os edifícios
@@ -141,6 +220,7 @@ Recursos previsaoDoTurno(const Reino& reino) {
 string processarTurnoReino(Reino& reino) {
     Recursos mudanca = previsaoDoTurno(reino);
     somar(reino.estoque, mudanca);
+    limparPilha(reino.historico);     // virou turno: não dá mais pra desfazer
 
     string fome = aplicarFome(reino);
     if (!fome.empty()) return fome;

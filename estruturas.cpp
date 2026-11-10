@@ -68,3 +68,88 @@ void liberarEdificios(ListaEdificios& lista) {
     lista.ultimo = nullptr;
     lista.tamanho = 0;
 }
+
+// pilha
+
+// coloca no topo - O(1)
+void empilhar(PilhaAcoes& pilha, const Acao& acao) {
+    NoPilha* novo = new NoPilha;
+    novo->acao = acao;
+    novo->abaixo = pilha.topo;
+    pilha.topo = novo;
+    pilha.tamanho++;
+}
+
+// tira do topo - O(1)
+bool desempilhar(PilhaAcoes& pilha, Acao& saida) {
+    if (pilha.topo == nullptr) return false;
+    NoPilha* velho = pilha.topo;
+    saida = velho->acao;
+    pilha.topo = velho->abaixo;
+    delete velho;
+    pilha.tamanho--;
+    return true;
+}
+
+const Acao* topoDaPilha(const PilhaAcoes& pilha) {
+    return pilha.topo ? &pilha.topo->acao : nullptr;
+}
+
+bool pilhaVazia(const PilhaAcoes& pilha) {
+    return pilha.topo == nullptr;
+}
+
+void limparPilha(PilhaAcoes& pilha) {
+    Acao lixo;
+    while (desempilhar(pilha, lixo)) {
+    }
+}
+
+// fila
+
+// entra no fim - O(1)
+void enfileirar(FilaConstrucao& fila, const OrdemConstrucao& ordem) {
+    NoFila* novo = new NoFila;
+    novo->ordem = ordem;
+    novo->proximo = nullptr;
+    if (fila.fim == nullptr) {
+        fila.inicio = novo;
+    } else {
+        fila.fim->proximo = novo;
+    }
+    fila.fim = novo;
+    fila.tamanho++;
+}
+
+// sai do começo - O(1)
+bool desenfileirar(FilaConstrucao& fila, OrdemConstrucao& saida) {
+    if (fila.inicio == nullptr) return false;
+    NoFila* velho = fila.inicio;
+    saida = velho->ordem;
+    fila.inicio = velho->proximo;
+    if (fila.inicio == nullptr) fila.fim = nullptr;
+    delete velho;
+    fila.tamanho--;
+    return true;
+}
+
+const OrdemConstrucao* frenteDaFila(const FilaConstrucao& fila) {
+    return fila.inicio ? &fila.inicio->ordem : nullptr;
+}
+
+bool filaVazia(const FilaConstrucao& fila) {
+    return fila.inicio == nullptr;
+}
+
+bool loteNaFila(const FilaConstrucao& fila, int linha, int coluna) {
+    for (NoFila* no = fila.inicio; no != nullptr; no = no->proximo) {
+        if (no->ordem.linha == linha && no->ordem.coluna == coluna) return true;
+    }
+    return false;
+}
+
+void limparFila(FilaConstrucao& fila) {
+    OrdemConstrucao lixo;
+    while (desenfileirar(fila, lixo)) {
+    }
+}

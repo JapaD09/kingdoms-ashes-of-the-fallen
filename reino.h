@@ -31,6 +31,8 @@ struct Reino {
     int defesa = 0;
     ListaEdificios edificios;
     int proximoIdEdificio = 1;
+    PilhaAcoes historico;       // o que dá pra desfazer neste turno
+    FilaConstrucao ordens;      // construções esperando recurso
 };
 
 void iniciarReino(Reino& reino);
@@ -46,6 +48,15 @@ bool temRecursos(const Recursos& estoque, const Recursos& custo);
 std::string validarConstrucao(const Reino& reino, int tipo, int linha, int coluna);
 std::string construirEdificio(Reino& reino, int tipo, int linha, int coluna);
 std::string demolirEdificio(Reino& reino, int linha, int coluna);
+
+// desfaz a última construção/demolição do turno (pilha)
+std::string desfazerUltimaAcao(Reino& reino);
+
+// coloca uma construção na fila pra quando tiver recurso
+std::string agendarConstrucao(Reino& reino, int tipo, int linha, int coluna);
+
+// tenta construir as ordens da fila, na ordem em que entraram
+std::string processarFila(Reino& reino);
 
 // quanto muda no próximo turno
 Recursos previsaoDoTurno(const Reino& reino);

@@ -177,3 +177,21 @@ void iconeAmpulheta(int x, int y, int s) {
     PX(2, 4, 3, 1, DOURADO);
     PX(1, 5, 5, 1, DOURADO);
 }
+
+// seta curva pra trás
+void iconeDesfazer(int x, int y, int s) {
+    PX(2, 0, 1, 3, PERGAMINHO);
+    PX(1, 1, 1, 1, PERGAMINHO);
+    PX(3, 1, 3, 1, PERGAMINHO);
+    PX(6, 2, 1, 3, PERGAMINHO);
+    PX(2, 5, 4, 1, PERGAMINHO);
+}
+
+// olho, pra trocar a vista
+void iconeVista(int x, int y, int s) {
+    PX(1, 2, 5, 3, PERGAMINHO);
+    PX(0, 3, 7, 1, PERGAMINHO);
+    PX(3, 2, 1, 3, TELHADO_AZUL);
+    PX(2, 3, 3, 1, TELHADO_AZUL);
+    PX(3, 3, 1, 1, CONTORNO);
+}
