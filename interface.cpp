@@ -1,6 +1,7 @@
 // Telas do jogo (raylib). Desenha em 320x180 e amplia 4x.
 
 #include "interface.h"
+#include "algoritmos.h"
 #include "fonte.h"
 #include "natureza.h"
 #include "paleta.h"
@@ -54,6 +55,28 @@ struct EstadoTela {
     bool painelRecursos = false;
     const char* dica = nullptr;   // texto perto do mouse
 };
+
+// tela do catálogo (árvore, ordenação e buscas)
+struct EstadoCatalogo {
+    bool aberto = false;
+    bool porPreco = false;
+    Item porId[20];              // in-ordem da árvore = ordenado por id
+    Item naTela[20];             // o que aparece na lista
+    int total = 0;
+    int compOrdenacao = 0;
+    string busca;
+    bool buscou = false;
+    int idAchado = -1;
+    int compArvore = 0, compSequencial = 0, compBinaria = 0;
+};
+
+EstadoCatalogo catalogo;
+
+const Rectangle BOTAO_POR_ID = {204, 30, 90, 13};
+const Rectangle BOTAO_POR_PRECO = {204, 46, 90, 13};
+const Rectangle CAIXA_BUSCA = {204, 89, 90, 13};
+const Rectangle BOTAO_BUSCAR = {204, 105, 90, 13};
+const Rectangle BOTAO_FECHAR = {250, 157, 44, 13};
 
 EstadoTela tela;
 RenderTexture2D alvo;
@@ -458,6 +481,67 @@ void desenharPainelRecursos(const Reino& reino) {
     linhaRecurso(iconeSoldado, "Soldados", reino.soldados, 116);
 }
 
+void botaozinho(Rectangle r, const char* texto, bool ativo) {
+    bool sobre = mouseSobre(r);
+    caixa(r, CONTORNO, ativo ? DOURADO : (sobre ? MADEIRA : MADEIRA_ESCURA));
+    int x = static_cast<int>(r.x + (r.width - larguraTexto(texto, 1)) / 2);
+    desenharTexto(texto, x, static_cast<int>(r.y) + 3, 1, ativo ? CONTORNO : TEXTO_CLARO);
+}
+
+Color corRaridade(int raridade) {
+    return raridade == 3 ? DOURADO : raridade == 2 ? TELHADO_AZUL : PEDRA;
+}
+
+void desenharListaCatalogo() {
+    desenharTexto("ID", 26, 36, 1, PERGAMINHO_ESC);
+    desenharTexto("Item", 44, 36, 1, PERGAMINHO_ESC);
+    desenharTexto("Preço", 166, 36, 1, PERGAMINHO_ESC);
+    for (int i = 0; i < catalogo.total; i++) {
+        const Item& item = catalogo.naTela[i];
+        int y = 45 + i * 9;
+        if (item.id == catalogo.idAchado) DrawRectangle(24, y - 1, 172, 9, Fade(DOURADO, 0.6f));
+        desenharTexto(TextFormat("%d", item.id), 26, y, 1, MADEIRA_ESCURA);
+        DrawRectangle(40, y + 2, 2, 3, corRaridade(item.raridade));
+        desenharTexto(item.nome.c_str(), 44, y, 1, CONTORNO);
+        const char* preco = TextFormat("%d", item.valor);
+        desenharTexto(preco, 192 - larguraTexto(preco, 1), y, 1, VERMELHO_ESC);
+    }
+}
+
+void desenharResultadoBusca() {
+    if (!catalogo.buscou) {
+        desenharTexto("Digite um ID\ne aperte Enter", 205, 122, 1, PERGAMINHO_ESC);
+        return;
+    }
+    const char* achou = catalogo.idAchado >= 0 ? "Achou!" : "Não existe.";
+    desenharTexto(achou, 205, 121, 1, catalogo.idAchado >= 0 ? VERDE_TEXTO : TELHADO_VERM);
+    desenharTexto(TextFormat("Árvore: %d", catalogo.compArvore), 205, 130, 1, CONTORNO);
+    desenharTexto(TextFormat("Sequencial: %d", catalogo.compSequencial), 205, 139, 1, CONTORNO);
+    desenharTexto(TextFormat("Binária: %d", catalogo.compBinaria), 205, 148, 1, CONTORNO);
+}
+
+void desenharCatalogo(const Jogo& jogo) {
+    DrawRectangle(0, 0, VL, VA, Fade(CONTORNO, 0.5f));
+    caixaComSombra({20, 22, 280, 152}, PERGAMINHO);
+    desenharTexto("Catálogo", 26, 26, 1, VERMELHO_ESC);
+    desenharTexto(TextFormat("altura da árvore: %d", alturaArvore(jogo.catalogo)), 80, 26, 1, PERGAMINHO_ESC);
+    DrawRectangle(200, 26, 1, 144, PERGAMINHO_ESC);
+    desenharListaCatalogo();
+
+    botaozinho(BOTAO_POR_ID, "Por ID", !catalogo.porPreco);
+    botaozinho(BOTAO_POR_PRECO, "Por preço", catalogo.porPreco);
+    if (catalogo.porPreco) {
+        desenharTexto(TextFormat("ordenou com\n%d comparações", catalogo.compOrdenacao), 205, 61, 1, MADEIRA_ESCURA);
+    }
+    desenharTexto("Buscar ID:", 205, 81, 1, CONTORNO);
+    caixa(CAIXA_BUSCA, CONTORNO, TEXTO_CLARO);
+    bool cursor = static_cast<int>(tempo() * 2) % 2 == 0;
+    desenharTexto((catalogo.busca + (cursor ? "_" : "")).c_str(), 207, 92, 1, CONTORNO);
+    botaozinho(BOTAO_BUSCAR, "Buscar", false);
+    desenharResultadoBusca();
+    botaozinho(BOTAO_FECHAR, "Fechar", false);
+}
+
 void desenharMensagem() {
     if (tela.tempoMensagem <= 0) return;
     float alpha = tela.tempoMensagem > 1 ? 1.0f : tela.tempoMensagem;
@@ -541,12 +625,58 @@ void desenharTelaReino(const Jogo& jogo) {
     for (int i = 0; i < TOTAL_CARTAS; i++) desenharCarta(i, jogo.reino);
     desenharBarraTopo(jogo);
     if (tela.painelRecursos) desenharPainelRecursos(jogo.reino);
+    if (catalogo.aberto) desenharCatalogo(jogo);
     desenharMensagem();
     desenharDica();
     desenharTransicao(jogo.turno);
 }
 
 // entrada
+
+// catálogo
+
+void abrirCatalogo(const Jogo& jogo) {
+    catalogo = EstadoCatalogo();
+    catalogo.aberto = true;
+    copiarEmOrdem(jogo.catalogo, catalogo.porId, catalogo.total, 20);
+    for (int i = 0; i < catalogo.total; i++) catalogo.naTela[i] = catalogo.porId[i];
+}
+
+void mostrarCatalogo(bool porPreco) {
+    for (int i = 0; i < catalogo.total; i++) catalogo.naTela[i] = catalogo.porId[i];
+    catalogo.porPreco = porPreco;
+    if (porPreco) ordenarPorValor(catalogo.naTela, catalogo.total, catalogo.compOrdenacao);
+}
+
+// as três buscas procuram o mesmo id, pra dar pra comparar
+void buscarNoCatalogo(const Jogo& jogo) {
+    if (catalogo.busca.empty()) return;
+    int id = stoi(catalogo.busca);
+    catalogo.compArvore = 0;
+    const Item* item = buscarItem(jogo.catalogo, id, catalogo.compArvore);
+    buscaSequencial(catalogo.naTela, catalogo.total, id, catalogo.compSequencial);
+    buscaBinaria(catalogo.porId, catalogo.total, id, catalogo.compBinaria);
+    catalogo.buscou = true;
+    catalogo.idAchado = item ? item->id : -1;
+}
+
+void lerTecladoCatalogo(const Jogo& jogo) {
+    for (int c = GetCharPressed(); c > 0; c = GetCharPressed()) {
+        if (c >= '0' && c <= '9' && catalogo.busca.size() < 3) catalogo.busca += static_cast<char>(c);
+    }
+    if (IsKeyPressed(KEY_BACKSPACE) && !catalogo.busca.empty()) catalogo.busca.pop_back();
+    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) buscarNoCatalogo(jogo);
+    if (IsKeyPressed(KEY_ESCAPE)) catalogo.aberto = false;
+}
+
+void tratarCatalogo(const Jogo& jogo) {
+    lerTecladoCatalogo(jogo);
+    if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) return;
+    if (mouseSobre(BOTAO_POR_ID)) mostrarCatalogo(false);
+    if (mouseSobre(BOTAO_POR_PRECO)) mostrarCatalogo(true);
+    if (mouseSobre(BOTAO_BUSCAR)) buscarNoCatalogo(jogo);
+    if (mouseSobre(BOTAO_FECHAR)) catalogo.aberto = false;
+}
 
 void executarAcao(Jogo& jogo, int acao) {
     switch (acao) {
@@ -564,6 +694,9 @@ void executarAcao(Jogo& jogo, int acao) {
             break;
         case 7:
             avisar(desfazerUltimaAcao(jogo.reino));
+            break;
+        case 5:
+            abrirCatalogo(jogo);
             break;
         default:
             avisar("Essa parte do reino ainda está em obras.");
@@ -666,6 +799,10 @@ void atualizarTelaReino(Jogo& jogo) {
     float dt = GetFrameTime();
     atualizarGalinhasDoReino(jogo.reino, dt);
     atualizarChamines(jogo.reino, dt);
+    if (catalogo.aberto) {
+        tratarCatalogo(jogo);
+        return;
+    }
     if (IsKeyPressed(KEY_ESCAPE)) {
         tela.cartaSelecionada = -1;
         tela.painelRecursos = false;

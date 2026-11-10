@@ -1,9 +1,11 @@
 // Testes do reino e da lista (sem janela)
-// g++ -std=c++17 testes.cpp reino.cpp estruturas.cpp -o testes
+// g++ -std=c++17 testes.cpp jogo.cpp reino.cpp estruturas.cpp algoritmos.cpp -o testes
 
 #include <iostream>
 #include <string>
 #include "reino.h"
+#include "algoritmos.h"
+#include "jogo.h"
 
 using namespace std;
 
@@ -154,7 +156,52 @@ static void testarDesfazerEOrdens() {
     liberarReino(reino);
 }
 
+static void testarCatalogo() {
+    cout << "Arvore, ordenacao e buscas\n";
+    NoArvore* raiz = nullptr;
+    int comps = 0;
+    conferir(buscarItem(raiz, 5, comps) == nullptr, "buscar em arvore vazia");
+    montarCatalogo(raiz);
+    conferir(contarItens(raiz) == 14, "14 itens no catalogo");
+    Item repetido;
+    repetido.id = 50;
+    conferir(!inserirItem(raiz, repetido), "id repetido e recusado");
+    comps = 0;
+    const Item* achou = buscarItem(raiz, 43, comps);
+    conferir(achou && achou->nome == "Cota de malha", "acha id existente");
+    comps = 0;
+    conferir(buscarItem(raiz, 44, comps) == nullptr, "nao acha id inexistente");
+
+    Item v[20];
+    int n = 0;
+    copiarEmOrdem(raiz, v, n, 20);
+    bool crescente = true;
+    for (int i = 1; i < n; i++) crescente = crescente && v[i - 1].id < v[i].id;
+    conferir(n == 14 && crescente, "in-ordem sai crescente por id");
+
+    int compSeq, compBin;
+    conferir(buscaSequencial(v, n, 93, compSeq) == 13 && compSeq == 14, "sequencial olha todos ate o ultimo");
+    conferir(buscaBinaria(v, n, 93, compBin) == 13 && compBin <= 4, "binaria acha em ate log2(n)+1");
+    conferir(buscaBinaria(v, n, 94, compBin) == -1, "binaria nao acha inexistente");
+    conferir(buscaSequencial(v, n, 1, compSeq) == -1, "sequencial nao acha inexistente");
+
+    ordenarPorValor(v, n, comps);
+    bool porPreco = true;
+    for (int i = 1; i < n; i++) porPreco = porPreco && v[i - 1].valor <= v[i].valor;
+    conferir(porPreco && v[0].nome == "Pão de viagem", "insertion sort por preco");
+    int compOrdenado;
+    ordenarPorValor(v, n, compOrdenado);
+    conferir(compOrdenado == n - 1, "ja ordenado: n-1 comparacoes (melhor caso)");
+    Item vazio[1];
+    ordenarPorValor(vazio, 0, comps);
+    conferir(comps == 0, "vetor vazio nao quebra");
+
+    liberarArvore(raiz);
+    conferir(raiz == nullptr, "liberar zera a raiz");
+}
+
 int main() {
+    testarCatalogo();
     testarPilhaEFila();
     testarDesfazerEOrdens();
     testarLista();

@@ -153,3 +153,55 @@ void limparFila(FilaConstrucao& fila) {
     while (desenfileirar(fila, lixo)) {
     }
 }
+
+// árvore binária de busca
+
+// desce pela esquerda ou direita até achar um lugar vazio - O(h)
+bool inserirItem(NoArvore*& raiz, const Item& item) {
+    if (raiz == nullptr) {
+        raiz = new NoArvore;
+        raiz->item = item;
+        return true;
+    }
+    if (item.id == raiz->item.id) return false;
+    if (item.id < raiz->item.id) return inserirItem(raiz->esquerda, item);
+    return inserirItem(raiz->direita, item);
+}
+
+// caso-base: nó vazio (não achou) ou id igual (achou) - O(h)
+const Item* buscarItem(const NoArvore* raiz, int id, int& comparacoes) {
+    if (raiz == nullptr) return nullptr;
+    comparacoes++;
+    if (id == raiz->item.id) return &raiz->item;
+    if (id < raiz->item.id) return buscarItem(raiz->esquerda, id, comparacoes);
+    return buscarItem(raiz->direita, id, comparacoes);
+}
+
+// esquerda, nó atual, direita: sai em ordem de id - O(n)
+void copiarEmOrdem(const NoArvore* raiz, Item vetor[], int& quantidade, int maximo) {
+    if (raiz == nullptr || quantidade >= maximo) return;
+    copiarEmOrdem(raiz->esquerda, vetor, quantidade, maximo);
+    if (quantidade < maximo) vetor[quantidade++] = raiz->item;
+    copiarEmOrdem(raiz->direita, vetor, quantidade, maximo);
+}
+
+int contarItens(const NoArvore* raiz) {
+    if (raiz == nullptr) return 0;
+    return 1 + contarItens(raiz->esquerda) + contarItens(raiz->direita);
+}
+
+int alturaArvore(const NoArvore* raiz) {
+    if (raiz == nullptr) return 0;
+    int esquerda = alturaArvore(raiz->esquerda);
+    int direita = alturaArvore(raiz->direita);
+    return 1 + (esquerda > direita ? esquerda : direita);
+}
+
+// apaga os filhos antes do pai (pós-ordem)
+void liberarArvore(NoArvore*& raiz) {
+    if (raiz == nullptr) return;
+    liberarArvore(raiz->esquerda);
+    liberarArvore(raiz->direita);
+    delete raiz;
+    raiz = nullptr;
+}

@@ -32,6 +32,7 @@ const Color DOURADO_ESCURO = {204, 136, 48, 255};
 const Color BRILHO_OURO    = {255, 236, 150, 255};
 const Color TEXTO_CLARO    = {245, 238, 220, 255};
 const Color JANELA         = {255, 210, 110, 255};
+const Color VERDE_TEXTO    = {46, 120, 60, 255};
 const Color BRASA          = {255, 128, 48, 255};
 
 #endif

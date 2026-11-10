@@ -46,9 +46,9 @@ Todo turno o povo paga 1 de ouro a cada 2 habitantes e come 1 de comida a cada
 - [x] Cenário vivo — bosques com 5 tipos de árvore, vento, riacho, galinhas e fumaça
 - [x] Etapa 3 — economia (produção, consumo, construções)
 - [x] Etapa 4 — lista encadeada de edifícios
-- [ ] Etapa 5 — pilha e fila
-- [ ] Etapa 6 — catálogo de itens (árvore binária)
-- [ ] Etapa 7 — ordenação e buscas
+- [x] Etapa 5 — pilha (desfazer) e fila de construção
+- [x] Etapa 6 — catálogo de itens (árvore binária)
+- [x] Etapa 7 — ordenação e buscas
 - [ ] Etapas 8 e 9 — mapa da expedição e combate
 - [ ] Etapa 10 — reinício e liberação de memória
 
@@ -58,12 +58,29 @@ Todo turno o povo paga 1 de ouro a cada 2 habitantes e come 1 de comida a cada
   (guardamos o ponteiro do último nó), remoção por id tratando lista vazia / primeiro / meio / fim,
   travessia pra desenhar e somar a produção, e liberação de todos os nós ao sair.
 
+- **Pilha (R6)** — `estruturas.cpp`: guarda as construções e demolições do turno. O botão Desfazer (ou `Z`)
+  tira do topo e desfaz. Quando vira o turno a pilha é limpa, porque a produção já aconteceu.
+- **Fila (R7)** — `estruturas.cpp`: se faltar recurso, a construção entra na fila e é feita no fim do turno,
+  na ordem em que entrou. A primeira ordem espera até ter recurso e as de trás não passam na frente;
+  se o lote ficar ocupado, a ordem é cancelada.
+- **Árvore binária de busca (R8)** — `estruturas.cpp`: catálogo de 14 itens organizado por id, com inserção,
+  busca e percurso in-ordem, todos recursivos (R3).
+
+## Algoritmos
+
+Na tela **Catálogo** (`algoritmos.cpp`):
+
+- **Insertion sort (R9)** ordena por preço e mostra quantas comparações fez.
+  Melhor caso O(n) (já ordenado), médio e pior caso O(n²), memória extra O(1).
+- **Busca sequencial e binária (R10)** procuram o mesmo id e mostram as comparações de cada uma,
+  junto com a busca na árvore. A binária usa o vetor ordenado por id (o in-ordem da árvore).
+
 ## Testes
 
 `testes.cpp` testa a lista e a economia sem abrir a janela:
 
 ```
-g++ -std=c++17 -Wall -Wextra testes.cpp reino.cpp estruturas.cpp -o testes
+g++ -std=c++17 -Wall -Wextra testes.cpp jogo.cpp reino.cpp estruturas.cpp algoritmos.cpp -o testes
 ./testes
 ```
 

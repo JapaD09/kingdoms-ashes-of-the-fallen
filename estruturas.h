@@ -1,6 +1,8 @@
 #ifndef ESTRUTURAS_H
 #define ESTRUTURAS_H
 
+#include <string>
+
 // Estruturas feitas na mão, com new e delete.
 
 // Lista encadeada de edifícios (R5)
@@ -88,5 +90,35 @@ const OrdemConstrucao* frenteDaFila(const FilaConstrucao& fila);
 bool filaVazia(const FilaConstrucao& fila);
 bool loteNaFila(const FilaConstrucao& fila, int linha, int coluna);
 void limparFila(FilaConstrucao& fila);
+
+// Árvore binária de busca do catálogo (R8), organizada pelo id
+// menor id vai pra esquerda, maior pra direita
+
+struct Item {
+    int id = 0;
+    std::string nome;
+    std::string tipo;
+    int valor = 0;       // preço em ouro
+    int raridade = 1;    // 1 comum, 2 raro, 3 lendário
+};
+
+struct NoArvore {
+    Item item;
+    NoArvore* esquerda = nullptr;
+    NoArvore* direita = nullptr;
+};
+
+// false se o id já existe (não aceita repetido)
+bool inserirItem(NoArvore*& raiz, const Item& item);
+
+// recursiva; conta quantos nós olhou. nullptr se não achou
+const Item* buscarItem(const NoArvore* raiz, int id, int& comparacoes);
+
+// percurso in-ordem recursivo (R3): enche o vetor em ordem crescente de id
+void copiarEmOrdem(const NoArvore* raiz, Item vetor[], int& quantidade, int maximo);
+
+int contarItens(const NoArvore* raiz);
+int alturaArvore(const NoArvore* raiz);
+void liberarArvore(NoArvore*& raiz);
 
 #endif
