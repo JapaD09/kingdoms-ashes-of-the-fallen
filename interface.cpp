@@ -125,9 +125,19 @@ void caixaComSombra(Rectangle r, Color fundo) {
     caixa(r, CONTORNO, fundo);
 }
 
+// onde a tela do jogo fica dentro da janela (a janela pode mudar de tamanho)
+Rectangle areaNaJanela() {
+    float w = static_cast<float>(GetScreenWidth()), h = static_cast<float>(GetScreenHeight());
+    float escala = fminf(w / VL, h / VA);
+    if (escala >= 1.0f) escala = floorf(escala);    // inteiro = pixel certinho
+    float largura = VL * escala, altura = VA * escala;
+    return {(w - largura) / 2, (h - altura) / 2, largura, altura};
+}
+
 Vector2 mouseVirtual() {
     Vector2 m = GetMousePosition();
-    return {m.x / ESCALA, m.y / ESCALA};
+    Rectangle area = areaNaJanela();
+    return {(m.x - area.x) * VL / area.width, (m.y - area.y) * VA / area.height};
 }
 
 bool mouseSobre(Rectangle r) {
@@ -819,7 +829,9 @@ void atualizarTelaReino(Jogo& jogo) {
 }
 
 void abrirJanela() {
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
     InitWindow(VL * ESCALA, VA * ESCALA, "Kingdoms: Ashes of the Fallen");
+    SetWindowMinSize(VL * 2, VA * 2);
     SetExitKey(KEY_NULL);   // ESC não fecha o jogo
     SetTargetFPS(60);
     alvo = LoadRenderTexture(VL, VA);
@@ -841,6 +853,7 @@ void fecharJanela() {
 
 void atualizarInterface(Jogo& jogo) {
     float dt = GetFrameTime();
+    if (IsKeyPressed(KEY_F11)) ToggleBorderlessWindowed();
     atualizarBrasas(dt);
     if (tela.tempoMensagem > 0) tela.tempoMensagem -= dt;
     if (tela.tempoTransicao > 0) tela.tempoTransicao -= dt;
@@ -865,8 +878,8 @@ void desenharInterface(const Jogo& jogo) {
 
     // altura negativa: a textura vem invertida
     BeginDrawing();
+    ClearBackground(BLACK);
     Rectangle origem = {0, 0, static_cast<float>(VL), -static_cast<float>(VA)};
-    Rectangle destino = {0, 0, static_cast<float>(VL * ESCALA), static_cast<float>(VA * ESCALA)};
-    DrawTexturePro(alvo.texture, origem, destino, {0, 0}, 0.0f, WHITE);
+    DrawTexturePro(alvo.texture, origem, areaNaJanela(), {0, 0}, 0.0f, WHITE);
     EndDrawing();
 }
