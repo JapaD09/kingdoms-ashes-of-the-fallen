@@ -2,6 +2,7 @@
 
 #include "interface.h"
 #include "fonte.h"
+#include "natureza.h"
 #include "paleta.h"
 #include "sprites.h"
 #include "raylib.h"
@@ -56,6 +57,11 @@ struct EstadoTela {
 
 EstadoTela tela;
 RenderTexture2D alvo;
+Cenario cenarioReino;
+Cenario cenarioTitulo;
+const Reino* reinoAtual = nullptr;   // pras galinhas saberem onde tem prédio
+int fazendasContadas = -1;
+float tempoFumaca = 0;
 
 const Carta CARTAS[] = {
     {FAZENDA, "+8 comida\npor turno", desenharFazenda},
@@ -169,18 +175,6 @@ void desenharBrasas() {
 
 // cenário
 
-void desenharFundo() {
-    ClearBackground(FUNDO);
-    for (int i = 0; i < 220; i++) {
-        int x = (i * 73 + i / 7) % VL;
-        int y = (i * 151 + i * i) % VA;
-        Color cor = FUNDO_PONTO;
-        if (i % 23 == 0) cor = FLOR_AMARELA;
-        else if (i % 31 == 0) cor = FLOR_BRANCA;
-        DrawRectangle(x, y, (i % 3 == 0) ? 2 : 1, 1, cor);
-    }
-}
-
 // sombras de nuvem
 void desenharSombrasNuvens() {
     Color sombra = Fade(CONTORNO, 0.13f);
@@ -203,14 +197,6 @@ void desenharVinheta() {
     }
 }
 
-void desenharArvoresEmVolta() {
-    const int pos[][2] = {{80, 26}, {92, 56}, {79, 90}, {93, 112}, {84, 128},
-                          {222, 28}, {232, 62}, {221, 98}, {234, 118}};
-    for (const auto& p : pos) {
-        desenharArvore(p[0], p[1], 1);
-    }
-}
-
 void desenharLote(int linha, int coluna) {
     Rectangle r = areaLote(linha, coluna);
     int x = r.x, y = r.y;
@@ -225,10 +211,14 @@ void desenharLote(int linha, int coluna) {
         DrawRectangle(tx, ty, 1, 1, livre ? GRAMA_CLARA : GRAMA);
     }
     if (!livre) {
-        desenharArvore(x + 2, y + 2, 1);
-        desenharArvore(x + 12, y + 6, 1);
-        desenharArvore(x + 5, y + 11, 1);
-        DrawRectangle(x, y, LOTE, LOTE, Fade(CONTORNO, 0.18f));
+        const int pos[3][2] = {{5, 11}, {15, 14}, {9, 21}};
+        for (int i = 0; i < 3; i++) {
+            int tipo = (semente + i * 7) % 4;
+            int tom = (semente * 3 + i) % 3;
+            float vento = ventoNaArvore(tempo(), semente + i * 2.0f);
+            desenharArvoreVariada(x + pos[i][0], y + pos[i][1], tipo, (semente + i) % 2, tom, vento);
+        }
+        DrawRectangle(x, y, LOTE, LOTE, Fade(CONTORNO, 0.15f));
     }
     DrawRectangleLines(x, y, LOTE, LOTE, Fade(CONTORNO, 0.25f));
 }
@@ -284,6 +274,8 @@ void desenharGrade(const Reino& reino) {
     }
     desenharCastelo(GRADE_X + 2 * LOTE, GRADE_Y + 2 * LOTE, 1);
     desenharEdificios(reino);
+    desenharGalinhas(tempo());
+    desenharFumaca();
     desenharDestaqueLote(reino);
 }
 
@@ -503,10 +495,8 @@ void desenharIlhaTitulo() {
 }
 
 void desenharTelaTitulo() {
-    desenharFundo();
+    desenharCenario(cenarioTitulo, tempo());
     desenharSombrasNuvens();
-    const int arvores[][2] = {{36, 92}, {66, 122}, {24, 140}, {252, 96}, {274, 128}, {228, 148}};
-    for (const auto& a : arvores) desenharArvore(a[0], a[1], 2);
     desenharIlhaTitulo();
     desenharCastelo(127, 74, 3);
     desenharBrasas();
@@ -524,8 +514,7 @@ void desenharTelaTitulo() {
 
 void desenharTelaReino(const Jogo& jogo) {
     tela.dica = nullptr;
-    desenharFundo();
-    desenharArvoresEmVolta();
+    desenharCenario(cenarioReino, tempo());
     desenharGrade(jogo.reino);
     desenharSombrasNuvens();
     desenharBrasas();
@@ -616,7 +605,44 @@ void tratarTeclasCartas() {
     }
 }
 
+// galinha não anda em cima de prédio
+bool galinhaPodeAndar(float x, float y) {
+    int coluna = static_cast<int>(x - GRADE_X) / LOTE;
+    int linha = static_cast<int>(y - GRADE_Y) / LOTE;
+    if (ehCastelo(linha, coluna) || !loteLiberado(linha, coluna)) return false;
+    return buscarEdificioNoLote(reinoAtual->edificios, linha, coluna) == nullptr;
+}
+
+// mais fazenda = mais galinha
+void atualizarGalinhasDoReino(const Reino& reino, float dt) {
+    reinoAtual = &reino;
+    int fazendas = contarEdificiosDoTipo(reino.edificios, FAZENDA);
+    if (fazendas != fazendasContadas) {
+        fazendasContadas = fazendas;
+        Rectangle area = {GRADE_X + LOTE + 2.0f, GRADE_Y + LOTE + 4.0f, 3 * LOTE - 4.0f, 3 * LOTE - 6.0f};
+        prepararGalinhas(area, 2 + 2 * fazendas, galinhaPodeAndar);
+    }
+    atualizarGalinhas(dt);
+}
+
+// fumaça sai das chaminés da serraria e da oficina
+void atualizarChamines(const Reino& reino, float dt) {
+    atualizarFumaca(dt);
+    tempoFumaca += dt;
+    if (tempoFumaca < 0.45f) return;
+    tempoFumaca = 0;
+    for (NoEdificio* no = reino.edificios.primeiro; no != nullptr; no = no->proximo) {
+        int tipo = no->dados.tipo;
+        if (tipo != OFICINA && tipo != SERRARIA) continue;
+        Rectangle r = areaLote(no->dados.linha, no->dados.coluna);
+        soltarFumaca(r.x + (tipo == OFICINA ? 12 : 11), r.y);
+    }
+}
+
 void atualizarTelaReino(Jogo& jogo) {
+    float dt = GetFrameTime();
+    atualizarGalinhasDoReino(jogo.reino, dt);
+    atualizarChamines(jogo.reino, dt);
     if (IsKeyPressed(KEY_ESCAPE)) {
         tela.cartaSelecionada = -1;
         tela.painelRecursos = false;
@@ -638,6 +664,9 @@ void abrirJanela() {
     alvo = LoadRenderTexture(VL, VA);
     SetTextureFilter(alvo.texture, TEXTURE_FILTER_POINT);
     for (Brasa& b : tela.brasas) reiniciarBrasa(b, true);
+    Rectangle planalto = {GRADE_X - 6.0f, GRADE_Y - 8.0f, GRADE * LOTE + 12.0f, GRADE * LOTE + 32.0f};
+    gerarCenario(cenarioReino, planalto, VL, VA, 88, 7);
+    gerarCenario(cenarioTitulo, {92, 60, 136, 92}, VL, VA, 262, 21);
 }
 
 bool janelaAberta() {

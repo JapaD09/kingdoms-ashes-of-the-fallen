@@ -7,7 +7,7 @@ set RAYLIB=C:\raylib\raylib\src
 set PATH=C:\raylib\w64devkit\bin;%PATH%
 
 g++ -std=c++17 -Wall -Wextra ^
-    main.cpp jogo.cpp interface.cpp fonte.cpp sprites.cpp reino.cpp ^
+    main.cpp jogo.cpp interface.cpp natureza.cpp fonte.cpp sprites.cpp reino.cpp ^
     expedicao.cpp ^
     combate.cpp estruturas.cpp algoritmos.cpp ^
     -o kingdoms.exe -I%RAYLIB% -L%RAYLIB% ^

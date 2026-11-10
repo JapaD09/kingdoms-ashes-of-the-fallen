@@ -44,6 +44,7 @@ void desenharFazenda(int x, int y, int s) {
 }
 
 void desenharSerraria(int x, int y, int s) {
+    PX(11, 1, 2, 4, PEDRA);                  // chaminé
     PX(3, 9, 12, 9, MADEIRA);
     PX(2, 6, 14, 3, TELHADO_VERM);
     PX(4, 4, 10, 2, TELHADO_VERM);
@@ -75,23 +76,12 @@ void desenharMuralha(int x, int y, int s) {
 }
 
 void desenharOficina(int x, int y, int s) {
-    int fumaca = static_cast<int>(fmod(GetTime() * 3.0, 4.0));
     PX(3, 9, 13, 10, PEDRA);
     PX(2, 6, 15, 3, MADEIRA_ESCURA);
     PX(12, 2, 2, 5, PEDRA_CLARA);            // chaminé
-    PX(12, 1 - fumaca, 2, 1, Fade(TEXTO_CLARO, 0.6f));
     PX(7, 13, 4, 6, CONTORNO);
     PX(16, 15, 5, 2, CONTORNO);              // bigorna
     PX(17, 17, 3, 2, CONTORNO);
-}
-
-void desenharArvore(int x, int y, int s) {
-    PX(1, 9, 6, 1, Fade(CONTORNO, 0.35f));   // sombra
-    PX(3, 6, 1, 3, MADEIRA_ESCURA);
-    PX(1, 2, 5, 4, FOLHA);
-    PX(0, 3, 7, 2, FOLHA);
-    PX(2, 0, 3, 2, FOLHA);
-    PX(2, 1, 2, 2, FOLHA_CLARA);
 }
 
 // ícones

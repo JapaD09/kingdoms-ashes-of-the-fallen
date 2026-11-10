@@ -13,8 +13,6 @@ void desenharQuartel(int x, int y, int s);
 void desenharMuralha(int x, int y, int s);
 void desenharOficina(int x, int y, int s);
 
-void desenharArvore(int x, int y, int s);
-
 // ícones (7x7)
 void iconeOuro(int x, int y, int s);
 void iconeMadeira(int x, int y, int s);

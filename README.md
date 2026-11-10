@@ -43,6 +43,7 @@ Todo turno o povo paga 1 de ouro a cada 2 habitantes e come 1 de comida a cada
 
 - [x] Etapa 1 — esqueleto, menu principal e validação de entrada
 - [x] Interface gráfica em pixel art — título, grade do reino, cartas e painéis
+- [x] Cenário vivo — bosques com 5 tipos de árvore, vento, riacho, galinhas e fumaça
 - [x] Etapa 3 — economia (produção, consumo, construções)
 - [x] Etapa 4 — lista encadeada de edifícios
 - [ ] Etapa 5 — pilha e fila
@@ -75,6 +76,7 @@ g++ -std=c++17 -Wall -Wextra testes.cpp reino.cpp estruturas.cpp -o testes
 | `interface.h/.cpp` | Janela, telas e cliques (raylib) |
 | `fonte.h/.cpp` | Fonte própria em pixel art, com acentos |
 | `sprites.h/.cpp` | Desenhos do castelo, construções e ícones |
+| `natureza.h/.cpp` | Cenário vivo: árvores variadas, riacho, flores, galinhas e fumaça |
 | `paleta.h` | Cores do jogo |
 | `reino.h/.cpp` | Recursos, catálogo de edifícios, construção e turno |
 | `expedicao.h/.cpp` | Mapa, nós e saque |
