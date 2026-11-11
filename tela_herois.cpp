@@ -3,6 +3,7 @@
 #include "fonte.h"
 #include "paleta.h"
 #include "sprites.h"
+#include "som.h"
 #include "ui.h"
 #include <cmath>
 
@@ -172,6 +173,7 @@ string atualizarHerois(Reino& reino) {
         string texto = invocar(reino, heroi);
         if (heroi < 0) return texto;
         estado.revelando = heroi;
+        tocar(SOM_VITORIA);
         estado.tempoRevelar = 0;
         estado.novo = reino.herois.estrelas[heroi] == 1;
         return "";

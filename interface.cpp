@@ -9,9 +9,11 @@
 #include "paleta.h"
 #include "pincel.h"
 #include "sprites.h"
+#include "som.h"
 #include "ui.h"
 #include "tela_batalha.h"
 #include "tela_herois.h"
+#include "tela_expedicao.h"
 #include "raylib.h"
 #include <cmath>
 #include <ctime>
@@ -28,10 +30,10 @@ const int GRADE_X = 105;
 const int GRADE_Y = 19;
 const int MAX_BRASAS = 40;
 
-enum Tela { TELA_TITULO, TELA_REINO, TELA_BATALHA, TELA_DERROTA };
+enum Tela { TELA_TITULO, TELA_REINO, TELA_BATALHA, TELA_EXPEDICAO, TELA_DERROTA, TELA_VITORIA };
 
 // ações dos botões
-enum AcaoBotao { SAIR, RECRUTAR, RECURSOS, EXPEDICAO, CATALOGO, FIM_DO_TURNO, DESFAZER, TROCAR_VISTA, HEROIS };
+enum AcaoBotao { SAIR, RECRUTAR, RECURSOS, EXPEDICAO, CATALOGO, FIM_DO_TURNO, DESFAZER, TROCAR_VISTA, HEROIS, AJUDA };
 
 // fagulhas do fundo
 struct Brasa {
@@ -54,6 +56,7 @@ struct EstadoTela {
     float tempoTransicao = 0.0f;
     int cartaSelecionada = -1;     // índice na mão
     bool painelRecursos = false;
+    bool ajuda = false;
     const char* dica = nullptr;    // texto perto do mouse
     string textoDica;
     string resumoDoTurno;          // produção, mostrada na batalha
@@ -115,7 +118,8 @@ const Botao BOTOES[] = {
     {{4, 115, 70, 16}, "Desfazer", DESFAZER, iconeDesfazer},
     {{4, 134, 70, 16}, "Vista 2D", TROCAR_VISTA, iconeVista},
     {{246, 150, 70, 27}, "Fim do turno", FIM_DO_TURNO, iconeAmpulheta},
-    {{4, 160, 44, 17}, "Sair", SAIR, iconePorta},
+    {{4, 160, 38, 17}, "Sair", SAIR, iconePorta},
+    {{44, 160, 30, 17}, "F1", AJUDA, iconeLivro},
 };
 const int TOTAL_BOTOES = sizeof(BOTOES) / sizeof(BOTOES[0]);
 
@@ -564,15 +568,9 @@ void fundoDaArte(int x, int y, int tipoCarta, int i) {
     }
 }
 
-void desenharCarta(int i, const Reino& reino) {
-    int carta = cartaNaMao(reino, i);
+// desenha a frente de uma carta em qualquer lugar (mão ou recompensa)
+void desenharFrenteDaCarta(int carta, Rectangle r, int i, bool podeComprar, bool selecionada) {
     const ModeloCarta& modelo = modeloCarta(carta);
-    Rectangle r = areaCarta(i);
-    bool selecionada = i == tela.cartaSelecionada;
-    bool podeComprar = podePagar(reino, carta);
-    // chega deslizando de baixo (uma depois da outra) e levanta quando o mouse passa
-    float chegada = suavizar((anim.tempoMao - i * 0.07f) / 0.3f);
-    r.y += roundf((1 - chegada) * 48 - anim.cartaSobe[i]);
     int x = r.x, y = r.y;
 
     caixaComSombra(r, PERGAMINHO);
@@ -603,6 +601,17 @@ void desenharCarta(int i, const Reino& reino) {
         DrawRectangleLinesEx({r.x - 1, r.y - 1, r.width + 2, r.height + 2}, 1, DOURADO);
         desenharSeta(x + 16, y - 6);
     }
+}
+
+void desenharCarta(int i, const Reino& reino) {
+    int carta = cartaNaMao(reino, i);
+    Rectangle r = areaCarta(i);
+    bool selecionada = i == tela.cartaSelecionada;
+    bool podeComprar = podePagar(reino, carta);
+    // chega deslizando de baixo (uma depois da outra) e levanta quando o mouse passa
+    float chegada = suavizar((anim.tempoMao - i * 0.07f) / 0.3f);
+    r.y += roundf((1 - chegada) * 48 - anim.cartaSobe[i]);
+    desenharFrenteDaCarta(carta, r, i, podeComprar, selecionada);
 }
 
 int linhaCusto(Desenho icone, int custo, int tenho, int y) {
@@ -677,7 +686,7 @@ void desenharResumoReino(const Jogo& jogo) {
 
     DrawRectangle(251, y + 1, 60, 1, PERGAMINHO_ESC);
     desenharTexto(TextFormat("Defesa: %d", defesaDoReino(reino)), 251, y + 5, 1, MADEIRA_ESCURA);
-    desenharTexto(TextFormat("Monte: %d", reino.baralho.monte.tamanho), 251, y + 14, 1, MADEIRA_ESCURA);
+    desenharTexto(TextFormat("Chefes: %d/%d", chefesDerrotados(jogo), TOTAL_REINOS), 251, y + 14, 1, VERMELHO_ESC);
     if (reino.ordens.tamanho > 0) {
         desenharTexto(TextFormat("Na fila: %d", reino.ordens.tamanho), 251, y + 23, 1, MADEIRA_ESCURA);
     }
@@ -707,7 +716,7 @@ void linhaRecurso(Desenho icone, const char* nome, int valor, int y) {
 }
 
 void desenharPainelRecursos(const Reino& reino) {
-    caixaComSombra({100, 26, 120, 120}, PERGAMINHO);
+    caixaComSombra({100, 26, 150, 124}, PERGAMINHO);
     desenharTexto("Tesouro do Reino", 108, 31, 1, VERMELHO_ESC);
     DrawRectangle(108, 41, 104, 1, PERGAMINHO_ESC);
     linhaRecurso(iconeOuro, "Ouro", reino.estoque.ouro, 45);
@@ -719,6 +728,8 @@ void desenharPainelRecursos(const Reino& reino) {
     linhaRecurso(iconeSoldado, "Guardas", reino.soldados, 105);
     linhaRecurso(iconeCristal, "Cristais", reino.cristais, 115);
     linhaRecurso(iconeCoracao, "Castelo", reino.vidaCastelo, 125);
+    DrawRectangle(108, 135, 104, 1, PERGAMINHO_ESC);
+    desenharTexto(TextFormat("Poções %d   Armas %d   Armaduras %d", reino.pocoes, reino.armas, reino.armaduras), 108, 138, 1, MADEIRA_ESCURA);
 }
 
 Color corRaridade(int raridade) {
@@ -848,6 +859,71 @@ void desenharChamas() {
     }
 }
 
+Rectangle areaRecompensa(int i) {
+    return {96.0f + i * 46, 66, 32, 42};
+}
+const Rectangle BOTAO_SEM_CARTA = {128, 124, 64, 13};
+
+void desenharRecompensa(const Jogo& jogo) {
+    DrawRectangle(0, 0, VL, VA, Fade(CONTORNO, 0.6f));
+    caixaComSombra({70, 36, 180, 108}, PERGAMINHO);
+    textoCentralizadoEm("Recompensa da vitória", VL / 2, 42, VERMELHO_ESC);
+    textoCentralizadoEm("Escolha uma carta pro seu baralho", VL / 2, 52, MADEIRA_ESCURA);
+    for (int i = 0; i < 3; i++) {
+        Rectangle r = areaRecompensa(i);
+        bool sobre = mouseSobre(r);
+        if (sobre) r.y -= 3;
+        desenharFrenteDaCarta(jogo.recompensa[i], r, i, true, sobre);
+        const ModeloCarta& m = modeloCarta(jogo.recompensa[i]);
+        textoCentralizadoEm(m.nome, r.x + 16, 111, sobre ? VERMELHO_ESC : CONTORNO);
+    }
+    botaozinho(BOTAO_SEM_CARTA, "Nenhuma", false);
+}
+
+void desenharAjuda() {
+    DrawRectangle(0, 0, VL, VA, Fade(CONTORNO, 0.6f));
+    caixaComSombra({14, 12, 292, 162}, PERGAMINHO);
+    desenharTexto("Como jogar", 22, 17, 1, VERMELHO_ESC);
+    const char* texto =
+        "Objetivo: vencer os chefes dos 6 reinos nas\n"
+        "expedições, sem deixar o castelo cair.\n"
+        "Cartas: clique numa carta (ou 1 a 5) e num lote.\n"
+        "Carta igual em cima do prédio sobe o nível.\n"
+        "Botão direito demole. Z desfaz a jogada.\n"
+        "Fim do turno (Espaço): produção e um ataque.\n"
+        "Tropas dos prédios voltam sempre. Guardas não.\n"
+        "Heróis (H): invoque com cristais, equipe de 3.\n"
+        "Expedição: 15 de comida, uma por turno. O saque\n"
+        "só é seu se o grupo voltar pra casa.\n"
+        "Câmera: Q/E giram, W/S inclinam, roda dá zoom.\n"
+        "V troca 2D/3D. F11 tela cheia. M liga/desliga o som.";
+    desenharTexto(texto, 22, 30, 1, CONTORNO);
+    desenharTexto("clique para fechar", 204, 162, 1, PERGAMINHO_ESC);
+}
+
+// resumo da partida (derrota e vitória mostram o mesmo quadro)
+void desenharResumoDaPartida(const Jogo& jogo, int y) {
+    caixaComSombra({90, static_cast<float>(y), 140, 62}, PERGAMINHO);
+    desenharTexto(TextFormat("Turnos: %d", jogo.turno), 98, y + 6, 1, CONTORNO);
+    desenharTexto(TextFormat("Expedições: %d", jogo.expedicoesFeitas), 98, y + 16, 1, CONTORNO);
+    desenharTexto(TextFormat("Chefes derrotados: %d/%d", chefesDerrotados(jogo), TOTAL_REINOS), 98, y + 26, 1, CONTORNO);
+    desenharTexto(TextFormat("Ouro: %d   Castelo: %d", jogo.reino.estoque.ouro, jogo.reino.vidaCastelo), 98, y + 36, 1, CONTORNO);
+    desenharTexto(TextFormat("Pontuação: %d", pontuacao(jogo)), 98, y + 48, 1, VERMELHO_ESC);
+}
+
+void desenharTelaVitoria(const Jogo& jogo) {
+    desenharCenario(cenarioTitulo, tempo());
+    desenharSombrasNuvens();
+    desenharBrasas();
+    desenharFaixa(80, 14, 160, 26);
+    desenharTextoContorno("VITÓRIA!", (VL - larguraTexto("VITÓRIA!", 2)) / 2, 20, 2, BRILHO_OURO, DOURADO, CONTORNO);
+    textoCentralizado("Os seis reinos caíram. Ashenfall está em paz.", 48, 1, TEXTO_CLARO);
+    for (int r = 0; r < TOTAL_REINOS; r++) desenharBandeira(112 + r * 17, 60, r, 1);
+    desenharResumoDaPartida(jogo, 76);
+    botaoPrincipal(BOTAO_NOVO_JOGO, "Novo jogo");
+    desenharVinheta();
+}
+
 void desenharTelaDerrota(const Jogo& jogo) {
     desenharCenario(cenarioTitulo, tempo());
     DrawRectangle(0, 0, VL, VA, Fade(CONTORNO, 0.55f));
@@ -859,7 +935,8 @@ void desenharTelaDerrota(const Jogo& jogo) {
     desenharFaixa(90, 22, 140, 26);
     desenharTextoContorno("O castelo caiu", (VL - larguraTexto("O castelo caiu", 2)) / 2, 28, 2,
                           BRILHO_OURO, DOURADO, CONTORNO);
-    textoCentralizado(TextFormat("Ashenfall resistiu até o turno %d.", jogo.turno), 56, 1, TEXTO_CLARO);
+    textoCentralizado(TextFormat("Ashenfall resistiu até o turno %d.", jogo.turno), 54, 1, TEXTO_CLARO);
+    desenharResumoDaPartida(jogo, 78);
     botaoPrincipal(BOTAO_NOVO_JOGO, "Novo jogo");
     desenharVinheta();
 }
@@ -913,7 +990,9 @@ void desenharTelaReino(const Jogo& jogo) {
     if (tela.painelRecursos) desenharPainelRecursos(jogo.reino);
     if (catalogo.aberto) desenharCatalogo(jogo);
     if (heroisAbertos()) desenharHerois(jogo.reino);
-    desenharMensagem();
+    if (jogo.escolhendoCarta && tela.tempoTransicao <= 0) desenharRecompensa(jogo);
+    if (tela.ajuda) desenharAjuda();
+    if (!jogo.escolhendoCarta) desenharMensagem();   // senão tampa os nomes das cartas
     desenharDica();
     desenharTransicao(jogo.turno);
 }
@@ -976,6 +1055,7 @@ void comecarBatalha(Jogo& jogo) {
 }
 
 void executarAcao(Jogo& jogo, int acao) {
+    tocar(SOM_CLIQUE);
     switch (acao) {
         case RECURSOS:
             tela.painelRecursos = !tela.painelRecursos;
@@ -1002,9 +1082,21 @@ void executarAcao(Jogo& jogo, int acao) {
             modo3D = !modo3D;
             avisar(modo3D ? "Vista 3D: Q/E giram, roda dá zoom, R volta." : "Vista 2D.");
             break;
-        default:
-            avisar("A expedição ainda está sendo preparada.");
+        case AJUDA:
+            tela.ajuda = true;
             break;
+        default: {
+            string problema = partirEmExpedicao(jogo);
+            if (!problema.empty()) {
+                avisar(problema);
+                break;
+            }
+            comecarTelaExpedicao();
+            tela.cartaSelecionada = -1;
+            tela.atual = TELA_EXPEDICAO;
+            anim.escurecer = 1;
+            break;
+        }
     }
 }
 
@@ -1013,7 +1105,9 @@ void cliqueNoLote(Reino& reino, int linha, int coluna) {
     if (tela.cartaSelecionada >= 0) {
         int antes = reino.baralho.naMao;
         avisar(jogarCarta(reino, tela.cartaSelecionada, linha, coluna));
-        if (reino.baralho.naMao < antes) tela.cartaSelecionada = -1;   // a carta foi usada
+        bool usou = reino.baralho.naMao < antes;
+        tocar(usou ? SOM_CONSTRUIR : SOM_ERRO);
+        if (usou) tela.cartaSelecionada = -1;
     } else if (ehCastelo(linha, coluna)) {
         avisar("O castelo de Ashenfall.");
     } else if (ocupante != nullptr) {
@@ -1040,9 +1134,11 @@ void escolherCarta(Reino& reino, int i) {
     if (carta < 0) return;
     if (modeloCarta(carta).tipo == CARTA_INSTANTE) {      // instante não precisa de lote
         avisar(jogarCarta(reino, i, 0, 0));
+        tocar(SOM_CONSTRUIR);
         tela.cartaSelecionada = -1;
         return;
     }
+    tocar(SOM_CARTA);
     tela.cartaSelecionada = (i == tela.cartaSelecionada) ? -1 : i;
 }
 
@@ -1145,6 +1241,21 @@ void atualizarTelaReino(Jogo& jogo) {
     atualizarAnimacoes(jogo, dt);
     atualizarGalinhasDoReino(jogo.reino, dt);
     atualizarChamines(jogo.reino, dt);
+    if (tela.ajuda) {
+        bool fechar = IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_F1);
+        if (fechar) tela.ajuda = false;
+        return;
+    }
+    if (jogo.escolhendoCarta) {                  // primeiro escolhe a carta da vitória
+        if (tela.tempoTransicao > 0 || !IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) return;
+        for (int i = 0; i < 3; i++) {
+            if (mouseSobre(areaRecompensa(i))) avisar(escolherRecompensa(jogo, i));
+        }
+        if (mouseSobre(BOTAO_SEM_CARTA)) avisar(escolherRecompensa(jogo, -1));
+        return;
+    }
+    if (IsKeyPressed(KEY_F1)) tela.ajuda = true;
+    if (IsKeyPressed(KEY_M)) avisar(alternarSom() ? "Som ligado." : "Som desligado.");
     if (catalogo.aberto) {
         tratarCatalogo(jogo);
         return;
@@ -1171,8 +1282,10 @@ void atualizarTelaReino(Jogo& jogo) {
 
 void atualizarBatalha(Jogo& jogo) {
     if (!atualizarTelaBatalha(jogo.batalha, GetFrameTime())) return;
+    bool venceu = jogo.batalha.vitoria;
     string resultado = concluirBatalha(jogo);
     anim.escurecer = 1;
+    tocar(venceu ? SOM_VITORIA : SOM_DERROTA);
     if (jogo.derrota) {
         tela.atual = TELA_DERROTA;
         return;
@@ -1213,6 +1326,7 @@ void abrirJanela() {
     InfoMapa info = {VL, VA, GRADE_X, GRADE_Y, LOTE, GRADE, {}};
     for (int i = 0; i < TOTAL_TIPOS_EDIFICIO; i++) info.predios[i] = desenhoDoEdificio(i);
     iniciarVisao3D(info);
+    iniciarSom();
 }
 
 bool janelaAberta() {
@@ -1220,6 +1334,7 @@ bool janelaAberta() {
 }
 
 void fecharJanela() {
+    fecharSom();
     liberarVisao3D();
     UnloadRenderTexture(alvo);
     CloseWindow();
@@ -1245,7 +1360,15 @@ void atualizarInterface(Jogo& jogo) {
             atualizarBatalha(jogo);
             break;
         case TELA_DERROTA:
+        case TELA_VITORIA:
             if (clicouEm(BOTAO_NOVO_JOGO) || IsKeyPressed(KEY_ENTER)) novoJogo(jogo);
+            break;
+        case TELA_EXPEDICAO:
+            if (atualizarTelaExpedicao(jogo)) {
+                avisar(concluirExpedicao(jogo));
+                tela.atual = jogo.vitoria ? TELA_VITORIA : TELA_REINO;
+                anim.escurecer = 1;
+            }
             break;
         default:
             atualizarTelaReino(jogo);
@@ -1268,6 +1391,8 @@ void desenharInterface(const Jogo& jogo) {
         case TELA_TITULO: desenharTelaTitulo(); break;
         case TELA_BATALHA: desenharTelaBatalha(jogo.batalha, jogo.reino, tela.resumoDoTurno); break;
         case TELA_DERROTA: desenharTelaDerrota(jogo); break;
+        case TELA_VITORIA: desenharTelaVitoria(jogo); break;
+        case TELA_EXPEDICAO: desenharTelaExpedicao(jogo); break;
         default: desenharTelaReino(jogo); break;
     }
     if (anim.escurecer > 0) DrawRectangle(0, 0, VL, VA, Fade(CONTORNO, anim.escurecer));   // troca de tela suave

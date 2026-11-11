@@ -35,6 +35,9 @@ no fim do turno, e quando o monte acaba o descarte é embaralhado de volta.
 
 Se faltar recurso pra um prédio, a carta vira uma ordem na fila de construção.
 
+**Objetivo.** Derrotar os chefes dos 6 reinos nas expedições sem deixar o castelo cair.
+No fim aparece o resumo da partida com a pontuação. `F1` abre a ajuda dentro do jogo.
+
 **Batalha.** No fim de cada turno um dos 6 reinos inimigos ataca. A ordem é sorteada e muda
 a cada volta, então em 6 turnos os 6 aparecem. O painel da direita mostra quem vem e a força da onda.
 A cada 6 turnos vem um chefe.
@@ -53,6 +56,20 @@ depois os inimigos. O dano é `ataque - defesa`, no mínimo 1. Se o exército ca
 que sobrou bate no castelo (as muralhas diminuem esse dano). Vencer dá ouro e cristais;
 perder tira vida do castelo e parte do ouro. Castelo com 0 de vida = fim de jogo, e o
 **Novo jogo** libera tudo da partida velha antes de começar outra.
+
+**Expedição.** O botão **Expedição** manda a equipe de heróis pro território do reino que
+vai atacar no turno (custa 15 de comida, uma por turno). O mapa é feito de nós ligados por
+caminhos sorteados: combate, evento, tesouro, acampamento, elite e chefe. Sempre existe
+caminho até o chefe (uma função recursiva confere isso depois de gerar o mapa).
+
+- No combate o jogador escolhe a ação da rodada: **Atacar** (clique no inimigo pra escolher o alvo),
+  **Defender** (metade do dano), **Poção** ou **Fugir**. Depois os inimigos vivos atacam.
+- Nos eventos tem duas escolhas, cada uma com custo e ganho (caravana abandonada, altar antigo...).
+- O saque (ouro, cristais e itens do catálogo) fica separado e só entra no reino se o grupo
+  **voltar pra casa**. Se o grupo cair, o saque se perde e os heróis ficam feridos e não defendem.
+- Os itens achados vêm do catálogo (árvore binária): armas e armaduras dão bônus aos heróis.
+
+**Recompensa.** Depois de vencer a defesa, você escolhe 1 de 3 cartas pra entrar no baralho.
 
 **Heróis.** Na tela **Heróis** (`H`) cada invocação custa 5 cristais. Chances: comum 60%,
 raro 28%, épico 10%, lendário 2%, e a 10ª invocação sem épico vem épica. Herói repetido ganha
@@ -82,6 +99,8 @@ O mapa abre em **3D** (dá pra voltar pro 2D no botão **Vista 2D** ou na tecla 
 | `F11` | sai da tela cheia (o jogo já abre nela) ou volta |
 | `Z` | desfaz a última jogada do turno |
 | `H` | heróis |
+| `F1` | ajuda |
+| `M` | liga/desliga o som |
 
 A janela pode ser redimensionada à vontade.
 
@@ -101,7 +120,9 @@ A janela pode ser redimensionada à vontade.
 - [x] Heróis com invocação e equipe
 - [x] Etapa 9 — combate contra os 6 reinos no fim de cada turno
 - [x] Etapa 10 — derrota, novo jogo e liberação de memória
-- [ ] Etapa 8 — mapa da expedição
+- [x] Etapa 8 — mapa da expedição, saque e combate por ações
+- [x] Vitória com resumo e pontuação, carta de recompensa, ajuda (F1) e som
+- [x] Etapa 11 — balanceamento com simulador (`simulador.cpp`)
 
 ## Estruturas de dados
 
@@ -135,9 +156,24 @@ A lógica usa um sorteio próprio com semente (`aleatorio.cpp`), então os teste
 
 ```
 g++ -std=c++17 -Wall -Wextra testes.cpp jogo.cpp reino.cpp cartas.cpp herois.cpp inimigos.cpp combate.cpp \
-    estruturas.cpp algoritmos.cpp aleatorio.cpp -o testes
+    expedicao.cpp estruturas.cpp algoritmos.cpp aleatorio.cpp -o testes
 ./testes
 ```
+
+## Balanceamento
+
+Os números da economia ficam em `economia.h`. O `simulador.cpp` joga 60 partidas com cada
+tipo de jogador (parado, casual, esperto e um que só defende) e dá uma nota pra cada opção.
+Foram comparadas 486 combinações de imposto, preço, materiais iniciais, produção, força das
+ondas e força dos chefes. A escolhida: prédios 30% mais baratos, +50% de materiais no começo,
++30% de produção e chefes de expedição mais fortes a cada conquista.
+
+| | Antes | Agora |
+|---|---|---|
+| Jogador esperto vence | 76% (em 12 turnos) | 65% (em 19 turnos) |
+| Jogador casual vence | 35% | 21% |
+| Quem só defende aguenta até o turno | 18 | 32 |
+| Cartas jogadas por turno | 1,25 | 1,77 |
 
 ## Organização do código
 
@@ -162,7 +198,11 @@ g++ -std=c++17 -Wall -Wextra testes.cpp jogo.cpp reino.cpp cartas.cpp herois.cpp
 | `herois.h/.cpp` | Os 9 heróis e a invocação |
 | `inimigos.h/.cpp` | Os 6 reinos inimigos e a força das ondas |
 | `aleatorio.h/.cpp` | Sorteio com semente |
-| `expedicao.h/.cpp` | Mapa, nós e saque |
+| `expedicao.h/.cpp` | Mapa de nós, eventos, saque e combate por ações |
+| `tela_expedicao.h/.cpp` | Tela da expedição |
+| `economia.h` | Números de balanceamento num lugar só |
+| `simulador.cpp` | Joga centenas de partidas sozinho pra comparar economias (não faz parte do jogo) |
+| `som.h/.cpp` | Efeitos sonoros montados no código |
 | `combate.h/.cpp` | Batalha em rodadas, dano e recompensas |
 | `estruturas.h/.cpp` | Lista encadeada, pilha, fila e árvore binária de busca |
 | `algoritmos.h/.cpp` | Insertion sort, busca sequencial e busca binária |

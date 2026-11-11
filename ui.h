@@ -1,6 +1,7 @@
 #ifndef UI_H
 #define UI_H
 
+#include <string>
 #include "raylib.h"
 
 // Peças de tela usadas em todas as telas (caixas, botões, mouse).
@@ -33,6 +34,9 @@ void botaoPrincipal(Rectangle r, const char* texto);
 
 // faixa vermelha com pontas (títulos)
 void desenharFaixa(int x, int y, int largura, int altura);
+
+// coloca quebras de linha pra o texto caber na largura
+std::string quebrarTexto(const std::string& texto, int larguraMaxima);
 
 // barra de vida
 void barraDeVida(int x, int y, int largura, int vida, int maximo, Color cor);

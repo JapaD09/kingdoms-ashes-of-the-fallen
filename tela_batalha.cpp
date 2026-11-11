@@ -5,6 +5,7 @@
 #include "paleta.h"
 #include "pincel.h"
 #include "sprites.h"
+#include "som.h"
 #include "ui.h"
 #include <cmath>
 
@@ -82,6 +83,7 @@ void proximaRodada(Batalha& b) {
     guardarVidas(b);
     rodadaDeBatalha(b);
     anim.tempoRodada = 0;
+    if (b.totalGolpes > 0) tocar(SOM_GOLPE);
     for (int g = 0; g < b.totalGolpes; g++) {
         if (b.golpes[g].alvo < 0) anim.tremor = 0.35f;   // castelo apanhou
     }

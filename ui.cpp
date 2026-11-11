@@ -95,3 +95,31 @@ void barraDeVida(int x, int y, int largura, int vida, int maximo, Color cor) {
     ret(x - 0.5f, y, 0.5f, 2, CONTORNO);
     ret(x + largura, y, 0.5f, 2, CONTORNO);
 }
+
+std::string quebrarTexto(const std::string& texto, int larguraMaxima) {
+    std::string saida, linha, palavra;
+    auto fecharPalavra = [&]() {
+        if (palavra.empty()) return;
+        std::string tentativa = linha.empty() ? palavra : linha + " " + palavra;
+        if (!linha.empty() && larguraTexto(tentativa.c_str(), 1) > larguraMaxima) {
+            saida += linha + "\n";
+            linha = palavra;
+        } else {
+            linha = tentativa;
+        }
+        palavra.clear();
+    };
+    for (char c : texto) {
+        if (c == ' ') {
+            fecharPalavra();
+        } else if (c == '\n') {
+            fecharPalavra();
+            saida += linha + "\n";
+            linha.clear();
+        } else {
+            palavra += c;
+        }
+    }
+    fecharPalavra();
+    return saida + linha;
+}
