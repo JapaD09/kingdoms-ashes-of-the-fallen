@@ -1078,6 +1078,7 @@ void abrirJanela() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
     InitWindow(VL * ESCALA, VA * ESCALA, "Kingdoms: Ashes of the Fallen");
     SetWindowMinSize(VL * 2, VA * 2);
+    ToggleBorderlessWindowed();   // já abre em tela cheia (F11 volta pra janela)
     SetExitKey(KEY_NULL);   // ESC não fecha o jogo
     SetTargetFPS(60);
     alvo = LoadRenderTexture(VL, VA);

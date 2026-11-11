@@ -79,7 +79,7 @@ O mapa abre em **3D** (dá pra voltar pro 2D no botão **Vista 2D** ou na tecla 
 | roda do mouse | zoom |
 | botão do meio + arrastar | gira com o mouse |
 | `R` | volta a câmera pro começo |
-| `F11` | tela cheia |
+| `F11` | sai da tela cheia (o jogo já abre nela) ou volta |
 | `Z` | desfaz a última jogada do turno |
 | `H` | heróis |
 
