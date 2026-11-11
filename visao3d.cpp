@@ -2,13 +2,14 @@
 #include "fonte.h"
 #include "paleta.h"
 #include "pincel.h"
+#include "modelos3d.h"
 #include "sprites.h"
 #include "rlgl.h"
 #include <cmath>
 
 namespace {
 
-const float PIXEL = 16.0f;              // pixels do mapa por unidade 3D
+const float PIXEL = UNIDADES_POR_METRO;  // unidades do mapa por unidade 3D
 const float ALTURA_PLANALTO = 0.45f;
 const Color CEU = {30, 36, 54, 255};
 const Color CEU_HORIZONTE = {74, 62, 72, 255};
@@ -19,10 +20,7 @@ Shader descarte;                        // joga fora pixel transparente
 Camera3D camera;
 float giro = 0.0f, inclinacao = 0.8f, distancia = 13.0f;
 
-// texturas pré-desenhadas das figuras
-RenderTexture2D texArvore[TOTAL_TIPOS_ARVORE][3][4][3];   // tipo, tamanho, tom, vento
-RenderTexture2D texPredio[TOTAL_TIPOS_EDIFICIO];
-RenderTexture2D texCastelo;
+// as galinhas continuam sendo figuras planas viradas pra câmera
 RenderTexture2D texGalinha[2][2][2];                      // direção, passo, cabeça
 
 const char* SHADER_DESCARTE =
@@ -66,31 +64,6 @@ void comecarAssado(RenderTexture2D& rt) {
 void terminarAssado() {
     terminarZoom();
     EndTextureMode();
-}
-
-void assarArvores() {
-    for (int tipo = 0; tipo < TOTAL_TIPOS_ARVORE; tipo++)
-        for (int tam = 0; tam < 3; tam++)
-            for (int tom = 0; tom < 4; tom++)
-                for (int q = 0; q < 3; q++) {
-                    RenderTexture2D& rt = texArvore[tipo][tam][tom][q] = assar(24, 30);
-                    comecarAssado(rt);
-                    desenharArvoreVariada(12, 28, tipo, tam, tom, q - 1.0f);
-                    terminarAssado();
-                }
-}
-
-void assarPredios() {
-    for (int i = 0; i < TOTAL_TIPOS_EDIFICIO; i++) {
-        texPredio[i] = assar(24, 30);
-        comecarAssado(texPredio[i]);
-        desenharComContorno(mapa.predios[i], 1, 7, 1);
-        terminarAssado();
-    }
-    texCastelo = assar(24, 30);
-    comecarAssado(texCastelo);
-    desenharComContorno(desenharCastelo, 1, 7, 1);
-    terminarAssado();
 }
 
 void assarGalinhas() {
@@ -154,13 +127,13 @@ void desenharTerreno() {
     pedacoDoChao(p, ALTURA_PLANALTO);
 }
 
+// árvores do cenário e da floresta dos lotes: modelos 3D de verdade
 void desenharArvoresDoCenario(const Cenario& c, float tempo) {
     for (int i = 0; i < c.total; i++) {
         const ObjetoCenario& o = c.objetos[i];
         if (o.tipo >= TOTAL_TIPOS_ARVORE) continue;
-        float vento = ventoNaArvore(tempo, o.fase);
-        int q = vento < -0.5f ? 0 : vento > 0.5f ? 2 : 1;
-        figura(texArvore[o.tipo][o.tamanho][o.tom % 4][q].texture, o.x, o.y, 2, WHITE);
+        Vector3 base = noMundo(o.x + 0.5f, o.y, alturaDoChao(o.x, o.y));
+        desenharArvore3D(o.tipo, o.tamanho, o.tom, base, ventoNaArvore(tempo, o.fase));
     }
 }
 
@@ -172,10 +145,9 @@ void desenharFlorestaDosLotes(const Reino& reino, float tempo) {
             for (int i = 0; i < 3; i++) {
                 int dx, dy, tipo, tamanho, tom;
                 arvoreDoLote(semente, i, dx, dy, tipo, tamanho, tom);
-                float vento = ventoNaArvore(tempo, semente + i * 2.0f);
-                int q = vento < -0.5f ? 0 : vento > 0.5f ? 2 : 1;
                 float x = mapa.gradeX + c * mapa.lote + dx, y = mapa.gradeY + l * mapa.lote + dy;
-                figura(texArvore[tipo][tamanho][tom][q].texture, x, y, 2, WHITE);
+                Vector3 base = noMundo(x + 0.5f, y, ALTURA_PLANALTO);
+                desenharArvore3D(tipo, tamanho, tom, base, ventoNaArvore(tempo, semente + i * 2.0f));
             }
         }
     }
@@ -185,13 +157,16 @@ Vector2 peDoLote(int linha, int coluna) {
     return {mapa.gradeX + coluna * mapa.lote + 11.0f, mapa.gradeY + linha * mapa.lote + 17.0f};
 }
 
-void desenharPredios(const Reino& reino, const Previa3D& previa) {
-    Vector2 castelo = peDoLote(2, 2);
-    figura(texCastelo.texture, castelo.x, castelo.y, 0, WHITE);
+// meio do lote, no chão do planalto
+Vector3 centroDoLote(int linha, int coluna) {
+    return noMundo(mapa.gradeX + coluna * mapa.lote + 11.0f, mapa.gradeY + linha * mapa.lote + 11.0f, ALTURA_PLANALTO);
+}
+
+void desenharPredios(const Reino& reino, const Previa3D& previa, float tempo) {
+    desenharCastelo3D(centroDoLote(2, 2), tempo);
     for (NoEdificio* no = reino.edificios.primeiro; no != nullptr; no = no->proximo) {
-        Vector2 pe = peDoLote(no->dados.linha, no->dados.coluna);
-        float cresce = previa.crescimento[no->dados.linha][no->dados.coluna];
-        figura(texPredio[no->dados.tipo].texture, pe.x, pe.y, 0, WHITE, cresce);
+        const Edificio& e = no->dados;
+        desenharPredio3D(e.tipo, centroDoLote(e.linha, e.coluna), previa.crescimento[e.linha][e.coluna], 1, tempo);
     }
 }
 
@@ -219,15 +194,14 @@ void desenharFumaca3D() {
     }
 }
 
+// fila e pré-visualização: o mesmo modelo, meio transparente
 void desenharFantasmas(const Reino& reino, const Previa3D& previa, float tempo) {
     float pulso = 0.45f + 0.25f * sinf(tempo * 6.0f);
     for (NoFila* no = reino.ordens.inicio; no != nullptr; no = no->proximo) {
-        Vector2 pe = peDoLote(no->ordem.linha, no->ordem.coluna);
-        figura(texPredio[no->ordem.tipoEdificio].texture, pe.x, pe.y, 0, Fade(WHITE, 0.45f));
+        desenharPredio3D(no->ordem.tipoEdificio, centroDoLote(no->ordem.linha, no->ordem.coluna), 1, 0.45f, tempo);
     }
     if (previa.tipo >= 0) {
-        Vector2 pe = peDoLote(previa.linha, previa.coluna);
-        figura(texPredio[previa.tipo].texture, pe.x, pe.y, 0, Fade(WHITE, pulso + 0.2f));
+        desenharPredio3D(previa.tipo, centroDoLote(previa.linha, previa.coluna), 1, pulso + 0.2f, tempo);
     }
 }
 
@@ -277,21 +251,13 @@ void iniciarVisao3D(const InfoMapa& info) {
     camera.fovy = 40;
     camera.projection = CAMERA_PERSPECTIVE;
     resetarCamera3D();
-    assarArvores();
-    assarPredios();
     assarGalinhas();
 }
 
 void liberarVisao3D() {
-    for (auto& tipo : texArvore)
-        for (auto& tam : tipo)
-            for (auto& tom : tam)
-                for (RenderTexture2D& rt : tom) UnloadRenderTexture(rt);
-    for (RenderTexture2D& rt : texPredio) UnloadRenderTexture(rt);
     for (auto& d : texGalinha)
         for (auto& p : d)
             for (RenderTexture2D& rt : p) UnloadRenderTexture(rt);
-    UnloadRenderTexture(texCastelo);
     UnloadRenderTexture(chao);
     UnloadShader(descarte);
 }
@@ -339,10 +305,11 @@ void desenharCena3D(const Cenario& cenario, const Reino& reino, const Previa3D& 
     rlDisableBackfaceCulling();
     desenharTerreno();
 
-    BeginShaderMode(descarte);
     desenharArvoresDoCenario(cenario, tempo);
     desenharFlorestaDosLotes(reino, tempo);
-    desenharPredios(reino, previa);
+    desenharPredios(reino, previa, tempo);
+
+    BeginShaderMode(descarte);
     desenharGalinhas3D(tempo);
     EndShaderMode();
 

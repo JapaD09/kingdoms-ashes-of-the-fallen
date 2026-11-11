@@ -270,6 +270,13 @@ void desenharEnfeite(const ObjetoCenario& o, float tempo) {
 
 // árvores (públicas, o reino usa nos lotes de floresta)
 
+void coresDaFolha(int tom, Color& escuro, Color& medio, Color& claro) {
+    const TomFolha& t = TONS[tom % 4];
+    escuro = t.escuro;
+    medio = t.medio;
+    claro = t.claro;
+}
+
 float ventoNaArvore(float tempo, float fase) {
     float rajada = 0.6f + 0.6f * sinf(tempo * 0.35f + fase * 0.2f);
     return sinf(tempo * 1.6f + fase) * rajada;

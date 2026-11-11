@@ -40,6 +40,9 @@ void arvoreDoLote(int semente, int i, int& dx, int& dy, int& tipo, int& tamanho,
 
 // balanco: entre -1 e 1, quanto o vento empurra a copa
 void desenharArvoreVariada(int x, int y, int tipo, int tamanho, int tom, float balanco);
+// as três cores da copa de um tom (os modelos 3D usam as mesmas)
+void coresDaFolha(int tom, Color& escuro, Color& medio, Color& claro);
+
 float ventoNaArvore(float tempo, float fase);
 
 // fumaça das chaminés

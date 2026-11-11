@@ -153,7 +153,8 @@ g++ -std=c++17 -Wall -Wextra testes.cpp jogo.cpp reino.cpp cartas.cpp herois.cpp
 | `fonte.h/.cpp` | Fonte própria em pixel art, com acentos |
 | `sprites.h/.cpp` | Desenhos do castelo, construções e ícones |
 | `natureza.h/.cpp` | Cenário vivo: árvores variadas, riacho, flores, galinhas e fumaça |
-| `visao3d.h/.cpp` | Vista meio 3D: chão em relevo, figuras em pé, câmera que gira |
+| `visao3d.h/.cpp` | Vista 3D: chão em relevo, câmera que gira e clique no mapa |
+| `modelos3d.h/.cpp` | Construções e árvores em 3D, montadas com blocos, telhados e cones |
 | `paleta.h` | Cores do jogo |
 | `pincel.h/.cpp` | Retângulo em meia unidade, contorno fino dos sprites e escala das animações |
 | `reino.h/.cpp` | Edifícios, jogadas das cartas, desfazer, fila e turno |
