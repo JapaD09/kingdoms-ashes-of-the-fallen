@@ -37,10 +37,10 @@ Color corDoReino(int reino);
 
 // x = meio do boneco, y = onde o pé encosta no chão
 // passo: 0 ou 1 (pernas), brilho: 0..1 (fica branco quando apanha)
-void desenharFigura(int x, int y, const Aparencia& a, bool olhaEsquerda, int passo, float brilho);
+void desenharFigura(float x, float y, const Aparencia& a, bool olhaEsquerda, int passo, float brilho);
 
 // caído no chão
-void desenharFiguraCaida(int x, int y, const Aparencia& a, bool olhaEsquerda);
+void desenharFiguraCaida(float x, float y, const Aparencia& a, bool olhaEsquerda);
 
 // bandeirinha do reino (7x9)
 void desenharBandeira(int x, int y, int reino, int s);

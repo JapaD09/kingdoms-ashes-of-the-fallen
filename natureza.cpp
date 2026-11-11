@@ -1,5 +1,6 @@
 #include "natureza.h"
 #include "paleta.h"
+#include "pincel.h"
 #include <cmath>
 
 namespace {
@@ -40,45 +41,53 @@ int sortear(int minimo, int maximo) {
     return minimo + static_cast<int>((estado >> 16) % static_cast<unsigned>(maximo - minimo + 1));
 }
 
-void px(int x, int y, int w, int h, Color cor) {
-    DrawRectangle(x, y, w, h, cor);
+void px(float x, float y, float w, float h, Color cor) {
+    ret(x, y, w, h, cor);
 }
 
-// quanto a linha da copa anda com o vento (o topo anda mais)
-int desvio(int linha, int altura, float balanco) {
-    return static_cast<int>(roundf(balanco * (altura - linha) / altura));
+// quanto a linha da copa anda com o vento (o topo anda mais), de meia em meia unidade
+float desvio(float linha, float altura, float balanco) {
+    return roundf(balanco * (altura - linha) / altura * 2) / 2;
 }
 
 // árvores
 
 void pinheiro(int x, int y, int tamanho, const TomFolha& t, float balanco) {
     int altura = 8 + tamanho * 3;
-    int topo = y - 2 - altura;
+    float topo = y - 2 - altura;
     px(x - 2 - tamanho, y, 5 + 2 * tamanho, 1, Fade(CONTORNO, 0.25f));
     px(x, y - 2, 1, 2, TRONCO);
-    for (int l = 0; l < altura; l++) {
-        int meia = (l % 3) + l / 3;
-        int cx = x + desvio(l, altura, balanco);
-        px(cx - meia, topo + l, 2 * meia + 1, 1, (l % 3 == 2) ? t.escuro : t.medio);
-        if (meia > 0) {
-            px(cx - meia, topo + l, 1, 1, t.claro);
-            px(cx + meia, topo + l, 1, 1, t.escuro);
-        }
+    px(x, y - 2, 0.5f, 2, Fade(CONTORNO, 0.3f));
+    for (float l = 0; l < altura; l += 0.5f) {      // cada "saia" abre aos poucos e fecha de uma vez
+        float naSaia = fmodf(l, 3);
+        float meia = naSaia * 0.8f + floorf(l / 3) * 0.9f + 0.5f;
+        meia = roundf(meia * 2) / 2;
+        float cx = x + 0.5f + desvio(l, altura, balanco);
+        px(cx - meia, topo + l, 2 * meia, 0.5f, naSaia >= 2 ? t.escuro : t.medio);
+        px(cx - meia, topo + l, fminf(meia * 0.6f, 1.5f), 0.5f, t.claro);      // lado do sol
+        if (meia >= 1) px(cx + meia - 0.5f, topo + l, 0.5f, 0.5f, t.escuro);
+        if (naSaia == 2.5f) px(cx - meia + 1, topo + l, 2 * meia - 1.5f, 0.5f, Fade(CONTORNO, 0.25f));
     }
 }
 
 // copa redonda (carvalho, bétula e arbusto usam)
 void copaRedonda(int cx, int cy, int raio, const TomFolha& t, float balanco) {
-    for (int dy = -raio; dy <= raio; dy++) {
-        int meia = static_cast<int>(sqrtf(raio * raio - dy * dy + raio * 0.8f));
-        int x = cx + desvio(dy + raio, 2 * raio + 1, balanco);
-        Color cor = (dy <= -raio / 2) ? t.claro : (dy >= raio / 2) ? t.escuro : t.medio;
-        px(x - meia, cy + dy, 2 * meia + 1, 1, cor);
-        px(x - meia, cy + dy, 1, 1, dy < 0 ? t.claro : t.medio);
+    float r = raio + 0.5f;
+    for (float dy = -r; dy < r; dy += 0.5f) {
+        float meia = roundf(sqrtf(r * r - (dy + 0.25f) * (dy + 0.25f)) * 2) / 2;
+        float x = cx + 0.5f + desvio(dy + r, 2 * r, balanco);
+        Color cor = (dy < -r * 0.4f) ? t.claro : (dy >= r * 0.45f) ? t.escuro : t.medio;
+        px(x - meia, cy + dy, 2 * meia, 0.5f, cor);
+        if (dy >= -r * 0.4f) px(x - meia, cy + dy, fminf(meia * 0.5f, 1.5f), 0.5f, dy < r * 0.45f ? t.claro : t.medio);
+        if (dy < r * 0.45f) px(x + meia - fminf(meia * 0.4f, 1), cy + dy, fminf(meia * 0.4f, 1), 0.5f, dy < -r * 0.4f ? t.medio : t.escuro);
     }
-    px(cx + 1, cy, 1, 1, t.escuro);              // textura das folhas
-    px(cx - raio / 2, cy + 1, 1, 1, t.escuro);
-    px(cx - 1, cy - raio / 2, 1, 1, t.claro);
+    // tufos de folha: sempre nos mesmos lugares pra copa não "ferver"
+    for (int i = 0; i < raio * 3; i++) {
+        float ang = i * 2.4f, dist = (0.25f + (i % 4) * 0.2f) * raio;
+        float fx = roundf((cx + cosf(ang) * dist) * 2) / 2, fy = roundf((cy + sinf(ang) * dist * 0.9f) * 2) / 2;
+        px(fx, fy, 1, 0.5f, i % 2 ? t.escuro : t.claro);
+        px(fx + 0.5f, fy + 0.5f, 0.5f, 0.5f, i % 2 ? t.escuro : t.claro);
+    }
 }
 
 void carvalho(int x, int y, int tamanho, const TomFolha& t, float balanco) {
@@ -86,6 +95,7 @@ void carvalho(int x, int y, int tamanho, const TomFolha& t, float balanco) {
     int tronco = 2 + tamanho / 2;
     px(x - raio, y, 2 * raio + 1, 1, Fade(CONTORNO, 0.25f));
     px(x, y - tronco, 1 + tamanho / 2, tronco, TRONCO);
+    px(x, y - tronco, 0.5f, tronco, Fade(CONTORNO, 0.3f));
     copaRedonda(x, y - tronco - raio, raio, t, balanco);
 }
 
@@ -94,7 +104,7 @@ void betula(int x, int y, int tamanho, const TomFolha& t, float balanco) {
     int raio = 2 + tamanho;
     px(x - raio, y, 2 * raio + 1, 1, Fade(CONTORNO, 0.2f));
     px(x, y - tronco, 1, tronco, BETULA_CASCA);
-    for (int i = 1; i < tronco; i += 2) px(x, y - i, 1, 1, CONTORNO);   // manchas da casca
+    for (int i = 1; i < tronco; i += 2) px(x + (i % 4 == 1 ? 0 : 0.5f), y - i, 0.5f, 0.5f, CONTORNO);   // manchas da casca
     copaRedonda(x, y - tronco - raio + 1, raio, t, balanco);
 }
 
@@ -172,11 +182,17 @@ void desenharRiacho(const Cenario& c, float tempo) {
     if (c.riachoX < 0) return;
     int brilho = static_cast<int>(tempo * 14);
     for (int y = 0; y < c.altura; y++) {
-        int x = static_cast<int>(riachoEm(c, y));
-        px(x - 1, y, 6, 1, MARGEM);
-        px(x, y, 4, 1, AGUA);
-        if ((y + brilho) % 9 == 0) px(x + 1, y, 1, 1, AGUA_CLARA);
-        if ((y + brilho / 2) % 13 == 0) px(x + 2, y, 1, 1, AGUA_CLARA);
+        for (int meio = 0; meio < 2; meio++) {       // duas meias linhas: a margem fica mais lisa
+            float fy = y + meio * 0.5f;
+            float x = roundf((riachoEm(c, y) * (2 - meio) + riachoEm(c, y + 1) * meio)) / 2;
+            px(x - 1, fy, 6, 0.5f, MARGEM);
+            px(x, fy, 4, 0.5f, AGUA);
+            px(x, fy, 0.5f, 0.5f, AGUA_CLARA);       // espuma na beira
+        }
+        float x = roundf(riachoEm(c, y) * 2) / 2;
+        if ((y + brilho) % 9 == 0) px(x + 1, y, 1.5f, 0.5f, AGUA_CLARA);
+        if ((y + brilho / 2) % 13 == 0) px(x + 2, y, 1, 0.5f, AGUA_CLARA);
+        if ((y * 7 + brilho / 3) % 17 == 0) px(x + 2.5f, y + 0.5f, 0.5f, 0.5f, TEXTO_CLARO);
     }
 }
 
@@ -259,7 +275,7 @@ float ventoNaArvore(float tempo, float fase) {
     return sinf(tempo * 1.6f + fase) * rajada;
 }
 
-void desenharArvoreVariada(int x, int y, int tipo, int tamanho, int tom, float balanco) {
+static void arvoreSemContorno(int x, int y, int tipo, int tamanho, int tom, float balanco) {
     const TomFolha& t = TONS[tom % 4];
     switch (tipo) {
         case PINHEIRO: pinheiro(x, y, tamanho, t, balanco); break;
@@ -267,6 +283,14 @@ void desenharArvoreVariada(int x, int y, int tipo, int tamanho, int tom, float b
         case BETULA:   betula(x, y, tamanho, t, balanco); break;
         case ARBUSTO:  arbusto(x, y, tamanho, t, balanco); break;
         default:       seca(x, y, tamanho); break;
+    }
+}
+
+void desenharArvoreVariada(int x, int y, int tipo, int tamanho, int tom, float balanco) {
+    const Color borda = {26, 40, 36, 255};
+    for (int passo = 0; passo < PASSOS_CONTORNO; passo++) {
+        passoDoContorno(passo, borda);
+        arvoreSemContorno(x, y, tipo, tamanho, tom, balanco);
     }
 }
 
@@ -366,9 +390,9 @@ int obterFumacas(EstadoFumaca saida[], int maximo) {
 void desenharFumaca() {
     for (const Fumaca& f : fumacas) {
         if (f.vida <= 0) continue;
-        int lado = static_cast<int>(f.tamanho);
-        DrawRectangle(static_cast<int>(f.x), static_cast<int>(f.y), lado, lado,
-                      Fade(FUMACA, f.vida / 2.6f * 0.85f));
+        float lado = roundf(f.tamanho * 2) / 2;
+        ret(roundf(f.x * 2) / 2, roundf(f.y * 2) / 2, lado, lado, Fade(FUMACA, f.vida / 2.6f * 0.85f));
+        ret(roundf(f.x * 2) / 2, roundf(f.y * 2) / 2, lado / 2, 0.5f, Fade(TEXTO_CLARO, f.vida / 2.6f * 0.3f));
     }
 }
 
@@ -416,6 +440,8 @@ void desenharGalinhaEm(int x, int y, int d, int passo, bool cabecaBaixa) {
     px(x + d * 2, cabecaY, 1, 1, FLOR_BRANCA);                // cabeça
     px(x + d * 2, cabecaY - 1, 1, 1, TELHADO_VERM);           // crista
     px(x + d * 3, cabecaY, 1, 1, DOURADO);                    // bico
+    px(x + d * 2 + (d > 0 ? 0.5f : 0), cabecaY, 0.5f, 0.5f, CONTORNO);   // olho
+    px(x - 0.5f, y - 1.5f, 1.5f, 1, Fade(CONTORNO, 0.15f));  // asa
     px(x - 1 + passo, y, 1, 1, DOURADO_ESCURO);               // pé
     px(x + 1 - passo, y, 1, 1, DOURADO_ESCURO);
 }

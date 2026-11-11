@@ -1,6 +1,7 @@
 #include "ui.h"
 #include "fonte.h"
 #include "paleta.h"
+#include "pincel.h"
 #include <cmath>
 
 float tempo() {
@@ -13,6 +14,13 @@ void caixa(Rectangle r, Color borda, Color fundo) {
     DrawRectangle(x + 1, y, w - 2, h, borda);
     DrawRectangle(x, y + 1, w, h - 2, borda);
     DrawRectangle(x + 1, y + 1, w - 2, h - 2, fundo);
+    // cantos mais redondos e um relevo fino (meia unidade)
+    ret(x + 0.5f, y + 0.5f, 0.5f, 0.5f, borda);
+    ret(x + w - 1, y + 0.5f, 0.5f, 0.5f, borda);
+    ret(x + 0.5f, y + h - 1, 0.5f, 0.5f, borda);
+    ret(x + w - 1, y + h - 1, 0.5f, 0.5f, borda);
+    ret(x + 1.5f, y + 1, w - 3, 0.5f, Fade(WHITE, 0.16f * fundo.a / 255.0f));
+    ret(x + 1.5f, y + h - 1.5f, w - 3, 0.5f, Fade(BLACK, 0.16f * fundo.a / 255.0f));
 }
 
 void caixaComSombra(Rectangle r, Color fundo) {
@@ -81,4 +89,9 @@ void barraDeVida(int x, int y, int largura, int vida, int maximo, Color cor) {
     int cheio = maximo > 0 ? (largura * vida + maximo - 1) / maximo : 0;
     if (vida > 0 && cheio < 1) cheio = 1;
     DrawRectangle(x, y, cheio, 2, cor);
+    ret(x, y, cheio, 0.5f, Fade(WHITE, 0.35f));
+    ret(x - 0.5f, y - 0.5f, largura + 1, 0.5f, CONTORNO);
+    ret(x - 0.5f, y + 2, largura + 1, 0.5f, CONTORNO);
+    ret(x - 0.5f, y, 0.5f, 2, CONTORNO);
+    ret(x + largura, y, 0.5f, 2, CONTORNO);
 }

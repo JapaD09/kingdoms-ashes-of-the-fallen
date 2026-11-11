@@ -1,12 +1,67 @@
 #include "sprites.h"
 #include "paleta.h"
+#include "pincel.h"
 #include <cmath>
 
 // desenha um retângulo dentro do sprite
 static const Color ROXO_CLARO = {140, 104, 196, 255};
 static const Color AZUL_CLARO = {110, 130, 210, 255};
 
-#define PX(a, b, w, h, cor) DrawRectangle(x + (a) * s, y + (b) * s, (w) * s, (h) * s, cor)
+#define PX(a, b, w, h, ...) ret(x + (a) * s, y + (b) * s, (w) * s, (h) * s, __VA_ARGS__)
+
+// Detalhes finos (usam meia unidade). Todos recebem a área em unidades do sprite.
+
+static const Color RISCO = {38, 26, 22, 60};
+static const Color RISCO_FORTE = {38, 26, 22, 110};
+static const Color LUZ = {255, 250, 235, 70};
+
+// fileiras de telha com as emendas desencontradas
+static void telhas(int x, int y, int s, float a, float b, float w, float h) {
+    PX(a, b, w, 0.5f, LUZ);
+    for (float l = 1; l <= h; l += 1) {
+        PX(a, b + l - 0.5f, w, 0.5f, RISCO);
+        float comeco = (static_cast<int>(l) % 2) ? 1.0f : 2.0f;
+        for (float c = comeco; c < w; c += 2) PX(a + c, b + l - 1, 0.5f, 0.5f, RISCO);
+    }
+}
+
+static void tijolos(int x, int y, int s, float a, float b, float w, float h) {
+    int fileira = 0;
+    for (float l = 2; l <= h; l += 2, fileira++) {
+        PX(a, b + l - 0.5f, w, 0.5f, RISCO);
+        for (float c = (fileira % 2) ? 1.5f : 3.0f; c < w; c += 3) PX(a + c, b + l - 2, 0.5f, 1.5f, RISCO);
+    }
+    PX(a, b, 0.5f, h, LUZ);
+    PX(a + w - 1, b, 1, h, RISCO);          // lado da sombra
+}
+
+static void tabuas(int x, int y, int s, float a, float b, float w, float h) {
+    for (float c = 2; c < w; c += 2) PX(a + c - 0.5f, b, 0.5f, h, RISCO);
+    PX(a, b, w, 0.5f, LUZ);
+    PX(a + w - 1, b, 1, h, RISCO);
+}
+
+static void janela(int x, int y, int s, float a, float b, float w, float h) {
+    PX(a - 0.5f, b - 0.5f, w + 1, 0.5f, RISCO_FORTE);
+    PX(a - 0.5f, b + h, w + 1, 0.5f, RISCO_FORTE);
+    PX(a - 0.5f, b, 0.5f, h, RISCO_FORTE);
+    PX(a + w, b, 0.5f, h, RISCO_FORTE);
+    if (w >= 2) PX(a + w / 2 - 0.25f, b, 0.5f, h, RISCO_FORTE);
+    PX(a, b + h / 2 - 0.25f, w, 0.5f, RISCO_FORTE);
+    PX(a, b, 0.5f, 0.5f, Color{255, 255, 240, 200});
+}
+
+static void porta(int x, int y, int s, float a, float b, float w, float h) {
+    PX(a, b, w, 0.5f, RISCO_FORTE);
+    for (float c = 1; c < w; c += 1) PX(a + c - 0.25f, b + 0.5f, 0.5f, h - 0.5f, RISCO);
+    PX(a + w - 1, b + h / 2, 0.5f, 0.5f, DOURADO);     // maçaneta
+}
+
+#define TELHAS(a, b, w, h) telhas(x, y, s, a, b, w, h)
+#define TIJOLOS(a, b, w, h) tijolos(x, y, s, a, b, w, h)
+#define TABUAS(a, b, w, h) tabuas(x, y, s, a, b, w, h)
+#define JANELA_FINA(a, b, w, h) janela(x, y, s, a, b, w, h)
+#define PORTA_FINA(a, b, w, h) porta(x, y, s, a, b, w, h)
 
 static int piscada(float velocidade) {
     return static_cast<int>(GetTime() * velocidade) % 2;
@@ -33,6 +88,23 @@ void desenharCastelo(int x, int y, int s) {
     PX(10, 7, 2, 2, JANELA);
     PX(3, 11, 1, 2, JANELA);
     PX(18, 11, 1, 2, JANELA);
+    TIJOLOS(3, 10, 16, 11);
+    TIJOLOS(1, 6, 5, 15);
+    TIJOLOS(16, 6, 5, 15);
+    TIJOLOS(8, 4, 6, 6);
+    TELHAS(1, 4, 5, 2);
+    TELHAS(16, 4, 5, 2);
+    TELHAS(8, 2, 6, 2);
+    JANELA_FINA(10, 7, 2, 2);
+    JANELA_FINA(3, 11, 1, 2);
+    JANELA_FINA(18, 11, 1, 2);
+    PX(9.5f, 15.5f, 3, 0.5f, PEDRA_CLARA);   // arco do portão
+    PX(9.5f, 16, 0.5f, 5, PEDRA_CLARA);
+    PX(12, 16, 0.5f, 5, PEDRA_CLARA);
+    PX(10.75f, 16, 0.5f, 5, Color{90, 84, 92, 255});      // grade
+    PX(10, 18, 2, 0.5f, Color{90, 84, 92, 255});
+    PX(12, -3.5f, 3, 0.5f, Color{226, 108, 88, 255});     // dobra da bandeira
+    PX(1, 20.5f, 20, 0.5f, RISCO_FORTE);
 }
 
 void desenharFazenda(int x, int y, int s) {
@@ -44,6 +116,17 @@ void desenharFazenda(int x, int y, int s) {
         PX(16, i - 1, 1, 1, DOURADO);
     }
     PX(2, 19, 18, 1, TERRA_ESCURA);
+    for (int i = 6; i < 19; i += 4) {
+        PX(3, i + 1, 16, 0.5f, RISCO);                    // sulco
+        for (float c = 3.5f; c < 19; c += 1.5f) PX(c, i - 0.5f, 0.5f, 0.5f, FOLHA_CLARA);
+        PX(4.25f, i - 1.5f, 0.5f, 0.5f, BRILHO_OURO);
+        PX(10.25f, i - 1.5f, 0.5f, 0.5f, BRILHO_OURO);
+        PX(16.25f, i - 1.5f, 0.5f, 0.5f, BRILHO_OURO);
+    }
+    PX(2, 4, 18, 0.5f, MADEIRA_ESCURA);      // cerca
+    for (float c = 2; c <= 19.5f; c += 2.5f) PX(c, 3.5f, 0.5f, 1.5f, MADEIRA);
+    PX(2, 4, 0.5f, 15, RISCO);
+    PX(19.5f, 4, 0.5f, 15, RISCO);
 }
 
 void desenharSerraria(int x, int y, int s) {
@@ -56,6 +139,19 @@ void desenharSerraria(int x, int y, int s) {
     PX(15, 12, 5, 3, MADEIRA);
     PX(20, 15, 1, 3, PERGAMINHO);
     PX(19, 12, 1, 3, PERGAMINHO);
+    TABUAS(3, 9, 12, 9);
+    TELHAS(2, 6, 14, 3);
+    TELHAS(4, 4, 10, 2);
+    PORTA_FINA(8, 13, 3, 5);
+    PX(4.5f, 10.5f, 2, 2, JANELA);
+    JANELA_FINA(4.5f, 10.5f, 2, 2);
+    PX(11, 1, 2, 0.5f, PEDRA_CLARA);
+    PX(14, 15, 6, 0.5f, LUZ);
+    PX(15, 12, 4, 0.5f, LUZ);
+    PX(20.25f, 15.75f, 0.5f, 1.5f, MADEIRA);              // anéis da tora
+    PX(19.25f, 12.75f, 0.5f, 1.5f, MADEIRA);
+    PX(14, 16.5f, 6, 0.5f, RISCO);
+    PX(2, 18, 13, 0.5f, RISCO_FORTE);
 }
 
 void desenharQuartel(int x, int y, int s) {
@@ -67,6 +163,15 @@ void desenharQuartel(int x, int y, int s) {
     PX(20, 1, 2, 3, TELHADO_AZUL);
     PX(4, 11, 2, 2, JANELA);
     PX(14, 11, 2, 2, JANELA);
+    TIJOLOS(2, 9, 16, 10);
+    TELHAS(1, 6, 18, 3);
+    TELHAS(3, 4, 14, 2);
+    PORTA_FINA(8, 13, 4, 6);
+    JANELA_FINA(4, 11, 2, 2);
+    JANELA_FINA(14, 11, 2, 2);
+    PX(20, 1, 2, 0.5f, AZUL_CLARO);
+    PX(9.5f, 10, 1, 2, PEDRA_CLARA);         // espadinha em cima da porta
+    PX(9, 11.5f, 2, 0.5f, DOURADO);
 }
 
 void desenharMuralha(int x, int y, int s) {
@@ -76,6 +181,16 @@ void desenharMuralha(int x, int y, int s) {
     PX(6, 11, 1, 2, CONTORNO);
     PX(14, 14, 1, 2, CONTORNO);
     PX(1, 19, 20, 1, CONTORNO);
+    TIJOLOS(1, 8, 20, 11);
+    for (int i = 1; i < 21; i += 4) {
+        PX(i, 6, 2, 0.5f, PEDRA_CLARA);
+        PX(i + 1.5f, 6, 0.5f, 2, RISCO);
+    }
+    PX(6, 10.5f, 1, 0.5f, PEDRA_CLARA);
+    PX(14, 13.5f, 1, 0.5f, PEDRA_CLARA);
+    PX(2, 18, 1, 1, FOLHA);                  // musgo
+    PX(17, 17.5f, 1.5f, 1.5f, FOLHA);
+    PX(9, 18.5f, 0.5f, 0.5f, FOLHA_CLARA);
 }
 
 void desenharOficina(int x, int y, int s) {
@@ -85,6 +200,16 @@ void desenharOficina(int x, int y, int s) {
     PX(7, 13, 4, 6, CONTORNO);
     PX(16, 15, 5, 2, CONTORNO);              // bigorna
     PX(17, 17, 3, 2, CONTORNO);
+    TIJOLOS(3, 9, 13, 10);
+    TELHAS(2, 6, 15, 3);
+    PX(12, 2, 2, 0.5f, TEXTO_CLARO);
+    PX(7.5f, 15.5f, 3, 3.5f, Color{160, 60, 30, 255});    // fogo da forja
+    PX(8, 16.5f, 2, 2.5f, BRASA);
+    PX(8.5f, 17.5f + piscada(6.0f) * 0.5f, 1, 1, JANELA);
+    PX(16, 15, 5, 0.5f, PEDRA);              // brilho da bigorna
+    PX(17, 17, 3, 0.5f, PEDRA);
+    PX(4.5f, 11, 1.5f, 1.5f, JANELA);
+    JANELA_FINA(4.5f, 11, 1.5f, 1.5f);
 }
 
 // ícones
@@ -218,6 +343,20 @@ void desenharMina(int x, int y, int s) {
     PX(15, 19, 1, 1, CONTORNO);
     PX(19, 19, 1, 1, CONTORNO);
     PX(2, 20, 18, 1, TERRA_ESCURA);
+    PX(5, 6, 6, 0.5f, LUZ);
+    PX(3, 13, 2, 0.5f, RISCO_FORTE);         // rachaduras
+    PX(4.5f, 13.5f, 0.5f, 2, RISCO_FORTE);
+    PX(16, 12.5f, 2.5f, 0.5f, RISCO_FORTE);
+    PX(17, 16, 0.5f, 2, RISCO);
+    PX(18, 9, 2, 11, RISCO);
+    PX(7, 10, 8, 0.5f, PERGAMINHO_ESC);      // viga
+    PX(7.25f, 10.25f, 0.5f, 0.5f, CONTORNO);
+    PX(14.25f, 10.25f, 0.5f, 0.5f, CONTORNO);
+    PX(8, 19, 12, 0.5f, PEDRA_CLARA);        // trilho
+    PX(6, 12, 1, 1.5f, JANELA);              // lanterna
+    PX(6, 11.5f, 1, 0.5f, CONTORNO);
+    PX(16.5f, 15.5f, 0.5f, 0.5f, TEXTO_CLARO);
+    PX(15, 17, 5, 0.5f, MADEIRA);
 }
 
 void desenharMercado(int x, int y, int s) {
@@ -236,6 +375,18 @@ void desenharMercado(int x, int y, int s) {
     PX(10, 2, 2, 2, DOURADO);                // placa de moeda
     PX(10, 4, 2, 1, MADEIRA_ESCURA);
     PX(15, 17, 3, 2, PERGAMINHO_ESC);
+    for (int i = 0; i < 18; i += 2) PX(2 + i, 7.5f, 2, 0.5f, RISCO);
+    PX(2, 5, 18, 0.5f, LUZ);
+    TABUAS(3, 14, 16, 5);
+    PX(5, 11.5f, 0.5f, 0.5f, CORACAO_CLARO);
+    PX(6, 11.5f, 0.5f, 0.5f, FOLHA_CLARA);
+    PX(9, 12, 3, 0.5f, DOURADO);
+    PX(14, 12.5f, 3, 0.5f, AZUL_CLARO);
+    PX(10.5f, 2.5f, 0.5f, 0.5f, BRILHO_OURO);
+    PX(3.5f, 8, 0.5f, 6, RISCO);
+    PX(18.5f, 8, 0.5f, 6, RISCO);
+    PX(7, 16, 4, 1.5f, PERGAMINHO);          // plaquinha de preço
+    PX(7.5f, 16.5f, 3, 0.5f, MADEIRA_ESCURA);
 }
 
 void desenharCasa(int x, int y, int s) {
@@ -254,6 +405,19 @@ void desenharCasa(int x, int y, int s) {
     PX(1, 16, 1, 3, MADEIRA);
     PX(18, 18, 1, 1, FLOR_AMARELA);
     PX(19, 17, 1, 1, FLOR_BRANCA);
+    for (float l = 0.5f; l < 6; l += 1) PX(4 + (5 - l) * 0.4f, 4 + l, 14 - (5 - l) * 0.8f, 0.5f, RISCO);
+    PX(7, 4, 8, 0.5f, BRILHO_OURO);
+    PX(10.5f, 10, 0.5f, 4, MADEIRA_ESCURA);  // enxaimel
+    PX(6, 10, 4.5f, 0.5f, RISCO);
+    PX(15, 10, 1, 9, RISCO);
+    PORTA_FINA(9, 15, 3, 4);
+    JANELA_FINA(13, 11, 2, 2);
+    PX(13, 13.5f, 2, 0.5f, MADEIRA);         // floreira
+    PX(13.25f, 13, 0.5f, 0.5f, FLOR_AMARELA);
+    PX(14.25f, 13, 0.5f, 0.5f, CORACAO_CLARO);
+    PX(14, 2, 2, 0.5f, PEDRA_CLARA);
+    PX(2, 16.5f, 0.5f, 2.5f, MADEIRA);
+    PX(5, 19, 12, 0.5f, RISCO_FORTE);
 }
 
 void desenharTorre(int x, int y, int s) {
@@ -269,6 +433,15 @@ void desenharTorre(int x, int y, int s) {
     PX(10, 13, 2, 2, CONTORNO);
     PX(9, 17, 4, 3, MADEIRA_ESCURA);
     PX(6, 19, 10, 1, CONTORNO);
+    TIJOLOS(7, 6, 8, 14);
+    PX(6, 4, 10, 0.5f, PEDRA_CLARA);
+    PX(6, 5.5f, 10, 0.5f, RISCO_FORTE);
+    for (int i = 6; i < 16; i += 4) PX(i, 3, 2, 0.5f, PEDRA_CLARA);
+    PX(10, 7.5f, 2, 0.5f, PEDRA_CLARA);
+    PX(10, 12.5f, 2, 0.5f, PEDRA_CLARA);
+    PORTA_FINA(9, 17, 4, 3);
+    PX(11, -3, 3, 0.5f, CORACAO_CLARO);
+    PX(8, 15, 1, 1, FOLHA);
 }
 
 void desenharArquearia(int x, int y, int s) {
@@ -288,6 +461,19 @@ void desenharArquearia(int x, int y, int s) {
     PX(17, 9, 4, 1, MADEIRA);                // flecha cravada
     PX(20, 8, 1, 1, TEXTO_CLARO);
     PX(2, 18, 18, 1, TERRA_ESCURA);
+    TABUAS(2, 10, 9, 8);
+    TELHAS(1, 8, 11, 2);
+    TELHAS(3, 6, 7, 2);
+    PORTA_FINA(5, 14, 3, 4);
+    PX(8.5f, 11, 1.5f, 1.5f, JANELA);
+    JANELA_FINA(8.5f, 11, 1.5f, 1.5f);
+    PX(14, 8, 5, 0.5f, VERMELHO_ESC);        // anéis do alvo
+    PX(14, 12.5f, 5, 0.5f, VERMELHO_ESC);
+    PX(15, 9, 3, 0.5f, PERGAMINHO_ESC);
+    PX(15.75f, 9.75f, 1.5f, 1.5f, TELHADO_VERM);
+    PX(16.25f, 10.25f, 0.5f, 0.5f, DOURADO);
+    PX(17, 9.25f, 4, 0.5f, MADEIRA_ESCURA);
+    PX(20.5f, 8.5f, 0.5f, 1.5f, TEXTO_CLARO);
 }
 
 void desenharEstabulo(int x, int y, int s) {
@@ -306,6 +492,21 @@ void desenharEstabulo(int x, int y, int s) {
     PX(17, 17, 4, 1, DOURADO_ESCURO);
     PX(4, 12, 2, 2, CONTORNO);
     PX(4, 12, 1, 1, MADEIRA);                // cavalo espiando
+    TABUAS(3, 9, 16, 10);
+    TELHAS(2, 6, 18, 3);
+    TELHAS(4, 4, 14, 2);
+    TELHAS(7, 2, 8, 2);
+    PX(8, 12, 6, 0.5f, PERGAMINHO);
+    PX(8, 12, 0.5f, 7, PERGAMINHO);
+    PX(13.5f, 12, 0.5f, 7, PERGAMINHO);
+    PX(10.75f, 12.5f, 0.5f, 6.5f, RISCO_FORTE);
+    JANELA_FINA(10, 6, 2, 2);
+    PX(17, 16, 4, 0.5f, BRILHO_OURO);
+    PX(17.5f, 16.5f, 0.5f, 2.5f, DOURADO_ESCURO);
+    PX(19.5f, 16.5f, 0.5f, 2.5f, DOURADO_ESCURO);
+    PX(4.5f, 12.5f, 0.5f, 0.5f, TEXTO_CLARO);  // olho do cavalo
+    PX(16, 12, 2, 2, CONTORNO);
+    JANELA_FINA(16, 12, 2, 2);
 }
 
 void desenharTorreArcana(int x, int y, int s) {
@@ -323,6 +524,17 @@ void desenharTorreArcana(int x, int y, int s) {
     PX(12, 15, 1, 1, CRISTAL);
     PX(7, 18, 8, 2, PEDRA);
     PX(10, 16, 2, 2, CONTORNO);
+    TIJOLOS(8, 6, 6, 13);
+    for (float l = 0; l < 8; l += 1) PX(7 + (7 - l) * 0.4f, -2 + l + 0.5f, 8 - (7 - l) * 0.8f, 0.5f, RISCO);
+    PX(10, -2, 0.5f, 8, Color{140, 104, 196, 120});
+    JANELA_FINA(10, 9, 2, 3);
+    PX(9.25f, 14.25f, 0.5f, 0.5f, TEXTO_CLARO);
+    PX(12.25f, 15.25f, 0.5f, 0.5f, TEXTO_CLARO);
+    float gira = static_cast<float>(GetTime()) * 2;
+    PX(11 + cosf(gira) * 3, -4 + sinf(gira) * 1.5f, 0.5f, 0.5f, CRISTAL);      // faíscas em volta do cristal
+    PX(11 + cosf(gira + 3.14f) * 3, -4 + sinf(gira + 3.14f) * 1.5f, 0.5f, 0.5f, TEXTO_CLARO);
+    PORTA_FINA(10, 16, 2, 2);
+    PX(7, 18, 8, 0.5f, PEDRA_CLARA);
 }
 
 // arte das cartas que não são prédio
@@ -460,4 +672,11 @@ Desenho desenhoDoEdificio(int tipo) {
                                 desenharOficina, desenharMina, desenharMercado, desenharCasa,
                                 desenharTorre, desenharArquearia, desenharEstabulo, desenharTorreArcana};
     return desenhos[tipo];
+}
+
+void desenharComContorno(Desenho desenho, int x, int y, int s) {
+    for (int passo = 0; passo < PASSOS_CONTORNO; passo++) {
+        passoDoContorno(passo, CONTORNO);
+        desenho(x, y, s);
+    }
 }

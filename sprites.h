@@ -20,6 +20,9 @@ void desenharArquearia(int x, int y, int s);
 void desenharEstabulo(int x, int y, int s);
 void desenharTorreArcana(int x, int y, int s);
 
+// desenha com um contorno fino em volta (4 silhuetas + o desenho)
+void desenharComContorno(Desenho desenho, int x, int y, int s);
+
 // desenho de cada TipoEdificio
 Desenho desenhoDoEdificio(int tipo);
 

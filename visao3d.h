@@ -30,6 +30,7 @@ bool mouseNoMapa3D(Vector2 mouse, Vector2& ponto);
 
 struct Previa3D {
     int linha = -1, coluna = -1, tipo = -1;   // prédio fantasma embaixo do mouse
+    float crescimento[5][5];   // 1 = tamanho normal (anima prédio novo)
 };
 
 void desenharCena3D(const Cenario& cenario, const Reino& reino, const Previa3D& previa, float tempo);

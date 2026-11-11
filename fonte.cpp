@@ -1,4 +1,5 @@
 #include "fonte.h"
+#include "pincel.h"
 
 namespace {
 
@@ -170,14 +171,40 @@ int larguraGlifo(const Glifo* g) {
     return largura;
 }
 
+// tem pixel aceso nessa posição do glifo?
+bool aceso(const Glifo* g, int l, int c, bool semPingo) {
+    if (l < 0 || l >= ALTURA_GLIFO || c < 0) return false;
+    if (semPingo && l == 0) return false;
+    const char* linha = g->linhas[l];
+    if (linha == nullptr) return false;
+    for (int i = 0; i <= c; i++) {
+        if (linha[i] == '\0') return false;
+    }
+    return linha[c] == '#';
+}
+
+// Cada pixel do glifo vira 4 "meios pixels", e os cantos são arredondados
+// com uma regra parecida com a do Scale2x: num pixel apagado, se os dois vizinhos
+// de um canto estão acesos (e os outros dois não), o cantinho acende. Tira o serrilhado.
 void desenharGlifo(const Letra& letra, int x, int y, int e, Color cima, Color baixo) {
+    const Glifo* g = letra.glifo;
     bool semPingo = letra.base == 'i' && letra.acento != NENHUM;
+    float m = e / 2.0f;
     for (int l = 0; l < ALTURA_GLIFO; l++) {
-        const char* linha = letra.glifo->linhas[l];
-        if (linha == nullptr || (semPingo && l == 0)) continue;
-        for (int c = 0; linha[c]; c++) {
-            if (linha[c] == '#') {
-                DrawRectangle(x + c * e, y + l * e, e, e, l < 4 ? cima : baixo);
+        for (int c = 0; c < 6; c++) {
+            bool p = aceso(g, l, c, semPingo);
+            bool a = aceso(g, l - 1, c, semPingo), b = aceso(g, l, c + 1, semPingo);
+            bool d = aceso(g, l + 1, c, semPingo), k = aceso(g, l, c - 1, semPingo);
+            bool cantos[4] = {p, p, p, p};      // cima-esq, cima-dir, baixo-esq, baixo-dir
+            if (!p) {                           // só preenche canto vazio; cortar deixava o D igual ao 0
+                cantos[0] = k && a && !d && !b;
+                cantos[1] = a && b && !k && !d;
+                cantos[2] = d && k && !b && !a;
+                cantos[3] = b && d && !a && !k;
+            }
+            for (int q = 0; q < 4; q++) {
+                if (!cantos[q]) continue;
+                ret(x + c * e + (q % 2) * m, y + l * e + (q / 2) * m, m, m, l < 4 ? cima : baixo);
             }
         }
     }

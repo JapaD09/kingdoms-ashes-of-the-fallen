@@ -3,6 +3,7 @@
 #include "fonte.h"
 #include "inimigos.h"
 #include "paleta.h"
+#include "pincel.h"
 #include "sprites.h"
 #include "ui.h"
 #include <cmath>
@@ -181,14 +182,19 @@ void desenharCampo(const Batalha& b) {
     DrawRectangle(0, CHAO_Y, VL, 3, GRAMA_ESCURA);
     for (int i = 0; i < 70; i++) {                      // tufos
         int tx = (i * 53) % VL, ty = CHAO_Y + 6 + (i * 31) % 96;
-        DrawRectangle(tx, ty, 1, 1, i % 3 ? GRAMA_CLARA : GRAMA_ESCURA);
+        ret(tx, ty, 0.5f, 1, i % 3 ? GRAMA_CLARA : GRAMA_ESCURA);
+        ret(tx + 1, ty + 0.5f, 0.5f, 0.5f, i % 3 ? GRAMA_CLARA : GRAMA_ESCURA);
     }
 }
 
 void desenharMuralha() {
     int tremor = anim.tremor > 0 ? static_cast<int>(sinf(tempo() * 60) * 2) : 0;
-    desenharCastelo(-12 + tremor, 14, 2);
+    desenharComContorno(desenharCastelo, -12 + tremor, 14, 2);
     DrawRectangle(tremor, 58, CASTELO_X, 92, PEDRA);
+    for (int fy = 60; fy < 150; fy += 4) {                    // tijolos finos da muralha
+        ret(tremor, fy, CASTELO_X, 0.5f, Fade(CONTORNO, 0.2f));
+        for (int fx = (fy / 4 % 2) * 4 + 2; fx < CASTELO_X; fx += 8) ret(tremor + fx, fy - 4, 0.5f, 4, Fade(CONTORNO, 0.2f));
+    }
     DrawRectangle(tremor, 58, 4, 92, PEDRA_CLARA);
     for (int y = 64; y < 150; y += 8) DrawRectangle(tremor, y, CASTELO_X, 1, Fade(CONTORNO, 0.3f));
     for (int y = 58; y < 150; y += 12) DrawRectangle(CASTELO_X - 2 + tremor, y, 3, 6, PEDRA);
@@ -210,8 +216,8 @@ void desenharLutador(const Batalha& b, int i, float entrada) {
     bool esquerda = l.lado == INIMIGO;
     Vector2 d = deslocamento(b, i);
     int chegada = static_cast<int>((1 - entrada) * 140) * (esquerda ? 1 : -1);
-    int x = anim.x[i] + static_cast<int>(d.x) + chegada;
-    int y = anim.y[i] + static_cast<int>(d.y);
+    float x = anim.x[i] + roundf(d.x * 2) / 2 + chegada;
+    float y = anim.y[i] + roundf(d.y * 2) / 2;
     int vida = vidaMostrada(b, i);
 
     if (vida <= 0) {
@@ -219,8 +225,10 @@ void desenharLutador(const Batalha& b, int i, float entrada) {
         return;
     }
     int passo = entrada < 1 ? static_cast<int>(tempo() * 8) % 2 : static_cast<int>(tempo() * 2 + i) % 2 * (d.x != 0);
-    DrawRectangle(x - 3 * a.tamanho, y - 1, 7 * a.tamanho, 2, Fade(CONTORNO, 0.25f));   // sombra
-    desenharFigura(x, y, a, esquerda, passo, brilhoDoGolpe(b, i));
+    ret(x - 3 * a.tamanho, y - 1, 7 * a.tamanho, 2, Fade(CONTORNO, 0.25f));   // sombra
+    // parado, o boneco "respira": sobe meia unidade de vez em quando
+    float respira = (entrada >= 1 && d.x == 0 && sinf(tempo() * 3 + i * 1.3f) > 0.3f) ? 0.5f : 0;
+    desenharFigura(x, y - respira, a, esquerda, passo, brilhoDoGolpe(b, i));
 
     int altura = (a.especial == MONTADO ? 16 : a.especial == DRAGAO ? 14 : a.baixinho ? 10 : 12) * a.tamanho;
     int largura = l.chefe ? 20 : 10;

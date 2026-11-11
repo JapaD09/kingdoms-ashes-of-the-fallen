@@ -1,5 +1,7 @@
 #include "figuras.h"
+#include <cmath>
 #include "paleta.h"
+#include "pincel.h"
 #include "reino.h"
 
 namespace {
@@ -12,16 +14,21 @@ const Color AZUL_ESC  = {48, 64, 128, 255};
 
 // desenha "espelhado" quando o boneco olha pra esquerda
 struct Pincel {
-    int x, y, s;
+    float x, y;
+    int s;
     bool esquerda;
     float brilho;
 
-    void px(int dx, int dy, int w, int h, Color cor) const {
+    // dx, dy, w e h aceitam meia unidade (detalhes finos)
+    void px(float dx, float dy, float w, float h, Color cor) const {
         if (brilho > 0) cor = ColorLerp(cor, WHITE, brilho);
-        int left = esquerda ? x - (dx + w - 1) * s : x + dx * s;
-        DrawRectangle(left, y + dy * s, w * s, h * s, cor);
+        float left = esquerda ? x - (dx + w - 1) * s : x + dx * s;
+        ret(left, y + dy * s, w * s, h * s, cor);
     }
 };
+
+const Color SOMBRA_FINA = {38, 26, 22, 70};
+const Color LUZ_FINA = {255, 250, 235, 80};
 
 Aparencia base(Color pele, Color roupa, Color escura, Color detalhe, int arma, int chapeu) {
     Aparencia a;
@@ -38,12 +45,18 @@ void desenharArma(const Pincel& p, const Aparencia& a, int topo) {
     switch (a.arma) {
         case ESPADA:
             p.px(4, topo + 1, 1, 4, PEDRA_CLARA);
+            p.px(4.25f, topo + 0.5f, 0.5f, 0.5f, PEDRA_CLARA);    // ponta
+            p.px(4, topo + 1, 0.5f, 4, TEXTO_CLARO);              // fio
             p.px(3, topo + 5, 3, 1, DOURADO_ESCURO);
+            p.px(3, topo + 5, 3, 0.5f, DOURADO);
             p.px(4, topo + 6, 1, 1, MADEIRA_ESCURA);
             break;
         case LANCA:
             p.px(4, topo - 2, 1, 2 - topo, MADEIRA);
             p.px(4, topo - 4, 1, 2, PEDRA_CLARA);
+            p.px(4.25f, topo - 4.5f, 0.5f, 0.5f, PEDRA_CLARA);
+            p.px(4, topo - 4, 0.5f, 2, TEXTO_CLARO);
+            p.px(3.5f, topo - 2, 2, 0.5f, TELHADO_VERM);          // fitinha
             break;
         case ARCO:
             p.px(4, topo, 1, 1, MADEIRA);
@@ -55,10 +68,12 @@ void desenharArma(const Pincel& p, const Aparencia& a, int topo) {
             p.px(4, topo - 1, 1, -topo, MADEIRA_ESCURA);
             p.px(3, topo - 3, 3, 3, Fade(a.brilhoArma, 0.35f));
             p.px(4, topo - 2, 1, 1, a.brilhoArma);
+            p.px(4, topo - 2, 0.5f, 0.5f, WHITE);
             break;
         case MACHADO:
             p.px(4, topo + 1, 1, 7, MADEIRA);
             p.px(5, topo + 1, 2, 3, PEDRA_CLARA);
+            p.px(6.5f, topo + 1, 0.5f, 3, TEXTO_CLARO);
             break;
         case MARTELO:
             p.px(4, topo + 2, 1, 6, MADEIRA);
@@ -79,7 +94,10 @@ void desenharArma(const Pincel& p, const Aparencia& a, int topo) {
 // cabeça: linhas topo..topo+2, chapéu em cima
 void desenharCabeca(const Pincel& p, const Aparencia& a, int topo) {
     p.px(-1, topo, 3, 3, a.pele);
-    p.px(1, topo + 1, 1, 1, CONTORNO);                 // olho
+    p.px(-1, topo + 2.5f, 3, 0.5f, SOMBRA_FINA);       // queixo
+    p.px(0.5f, topo + 1, 1.5f, 1, Color{250, 246, 236, 255});   // olho
+    p.px(1.5f, topo + 1, 0.5f, 1, CONTORNO);
+    p.px(1, topo + 0.5f, 1, 0.5f, SOMBRA_FINA);        // sobrancelha
     switch (a.chapeu) {
         case CABELO:
             p.px(-1, topo - 1, 3, 1, a.detalhe);
@@ -149,6 +167,12 @@ void desenharCavalo(const Pincel& p, int passo) {
     p.px(5, -10, 3, 2, CAVALO);                        // cabeça
     p.px(4, -9, 1, 2, CONTORNO);                       // crina
     p.px(6, -10, 1, 1, CONTORNO);
+    p.px(6, -10, 0.5f, 0.5f, TEXTO_CLARO);             // brilho do olho
+    p.px(-4, -6, 9, 0.5f, LUZ_FINA);
+    p.px(-1, -6, 3, 2, Color{120, 40, 40, 255});       // sela
+    p.px(-1, -6, 3, 0.5f, DOURADO_ESCURO);
+    p.px(7.5f, -8.5f, 0.5f, 0.5f, CONTORNO);           // focinho
+    p.px(5, -11, 0.5f, 1, CAVALO_ESC);                 // orelha
 }
 
 void desenharDragao(const Pincel& p, const Aparencia& a, int passo) {
@@ -165,6 +189,11 @@ void desenharDragao(const Pincel& p, const Aparencia& a, int passo) {
     p.px(6, -12, 1, 1, PERGAMINHO);                    // chifre
     p.px(7, -10, 1, 1, BRASA);                         // olho
     p.px(8, -8, 2, 1, Fade(BRASA, 0.6f));              // fumacinha
+    p.px(7, -10, 0.5f, 0.5f, JANELA);
+    p.px(-5, -7, 10, 0.5f, LUZ_FINA);
+    for (float e = -4; e < 4; e += 1.5f) p.px(e, -6 + fmodf(e + 4, 3) * 0.5f, 1, 0.5f, SOMBRA_FINA);   // escamas
+    for (float e = -3; e < 4; e += 2) p.px(e, -7.5f, 0.5f, 0.5f, a.roupaEscura);                    // espinhos
+    p.px(8.5f, -9.5f, 0.5f, 0.5f, PERGAMINHO);         // dente
     if (passo) {                                       // asa batendo
         p.px(-3, -13, 2, 6, a.roupaEscura);
         p.px(-1, -11, 2, 4, a.roupaEscura);
@@ -177,7 +206,7 @@ void desenharDragao(const Pincel& p, const Aparencia& a, int passo) {
 
 }
 
-void desenharFigura(int x, int y, const Aparencia& a, bool olhaEsquerda, int passo, float brilho) {
+static void figuraSemContorno(float x, float y, const Aparencia& a, bool olhaEsquerda, int passo, float brilho) {
     Pincel p = {x, y, a.tamanho, olhaEsquerda, brilho};
     if (a.especial == DRAGAO) {
         desenharDragao(p, a, passo);
@@ -205,15 +234,28 @@ void desenharFigura(int x, int y, const Aparencia& a, bool olhaEsquerda, int pas
     p.px(-3, ombro + 1, 1, 2, a.roupaEscura);            // braço de trás
     p.px(3, ombro + 1, 1, 2, a.roupa);                   // braço da frente
     p.px(3, ombro + 3, 1, 1, a.pele);
+    p.px(-2, ombro, 5, 0.5f, LUZ_FINA);                  // luz no ombro
+    p.px(-2, ombro, 1, corpo, SOMBRA_FINA);              // sombra nas costas
+    p.px(0.25f, cintura + 0.25f, 0.5f, 0.5f, DOURADO);   // fivela
+    p.px(0, ombro + 1, 0.5f, corpo - 2, SOMBRA_FINA);    // costura da túnica
     if (a.escudo) {
         p.px(-4, ombro, 2, 4, a.detalhe);
         p.px(-4, ombro + 1, 1, 2, a.roupa);
+        p.px(-4, ombro, 2, 0.5f, LUZ_FINA);
+        p.px(-3.25f, ombro + 1.75f, 0.5f, 0.5f, DOURADO);
     }
     desenharCabeca(p, a, cabeca);
     desenharArma(p, a, cabeca + 1);
 }
 
-void desenharFiguraCaida(int x, int y, const Aparencia& a, bool olhaEsquerda) {
+void desenharFigura(float x, float y, const Aparencia& a, bool olhaEsquerda, int passo, float brilho) {
+    for (int etapa = 0; etapa < PASSOS_CONTORNO; etapa++) {
+        passoDoContorno(etapa, CONTORNO);
+        figuraSemContorno(x, y, a, olhaEsquerda, passo, brilho);
+    }
+}
+
+void desenharFiguraCaida(float x, float y, const Aparencia& a, bool olhaEsquerda) {
     Pincel p = {x, y, a.tamanho, olhaEsquerda, 0};
     if (a.especial == DRAGAO) {
         p.px(-9, -1, 3, 1, Fade(a.roupaEscura, 0.8f));       // rabo
@@ -342,9 +384,14 @@ Color corDoReino(int reino) {
 
 void desenharBandeira(int x, int y, int reino, int s) {
     Color cor = corDoReino(reino);
-    DrawRectangle(x, y, s, 9 * s, CONTORNO);
-    DrawRectangle(x + s, y, 6 * s, 6 * s, cor);
-    DrawRectangle(x + s, y + 6 * s, 2 * s, s, cor);
-    DrawRectangle(x + 5 * s, y + 6 * s, 2 * s, s, cor);
-    DrawRectangle(x + 3 * s, y + 2 * s, 2 * s, 2 * s, reino == 5 ? BRASA : CONTORNO);   // símbolo
+    float onda = sinf(static_cast<float>(GetTime()) * 4) > 0 ? 0.5f : 0;      // pano balançando
+    ret(x, y, s, 9 * s, CONTORNO);
+    ret(x + s, y, 6 * s, 6 * s, cor);
+    ret(x + 4 * s, y + onda * s, 3 * s, 6 * s, cor);
+    ret(x + s, y + 6 * s, 2 * s, s, cor);
+    ret(x + 5 * s, y + (6 + onda) * s, 2 * s, s, cor);
+    ret(x + s, y, 6 * s, 0.5f * s, Fade(WHITE, 0.3f));
+    ret(x + s, y + 5 * s, 6 * s, s, Fade(CONTORNO, 0.2f));
+    ret(x + 3 * s, y + 2 * s, 2 * s, 2 * s, reino == 5 ? BRASA : CONTORNO);   // símbolo
+    ret(x + 3.5f * s, y + 2.5f * s, s, s, reino == 5 ? JANELA : cor);
 }

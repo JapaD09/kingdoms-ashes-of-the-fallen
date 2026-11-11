@@ -7,6 +7,7 @@
 #include "natureza.h"
 #include "visao3d.h"
 #include "paleta.h"
+#include "pincel.h"
 #include "sprites.h"
 #include "ui.h"
 #include "tela_batalha.h"
@@ -74,6 +75,21 @@ struct EstadoCatalogo {
 
 EstadoCatalogo catalogo;
 
+// animações leves da tela do reino
+struct Animacoes {
+    float nascimento[5][5];       // quando o prédio do lote apareceu ou subiu de nível
+    int nivelVisto[5][5];         // 0 = lote vazio
+    float cartaSobe[TAMANHO_MAO]; // quanto cada carta está levantada
+    float tempoMao;               // tempo desde que a mão chegou
+    int turnoVisto;
+    int valorVisto[9];            // números da barra de cima
+    int diferenca[9];
+    float pulso[9];
+    float escurecer;              // troca de tela
+};
+
+Animacoes anim;
+
 const Rectangle BOTAO_POR_ID = {204, 30, 90, 13};
 const Rectangle BOTAO_POR_PRECO = {204, 46, 90, 13};
 const Rectangle CAIXA_BUSCA = {204, 89, 90, 13};
@@ -104,6 +120,27 @@ const Botao BOTOES[] = {
 const int TOTAL_BOTOES = sizeof(BOTOES) / sizeof(BOTOES[0]);
 
 // utilidades
+
+void zerarAnimacoes() {
+    anim = Animacoes();
+    for (int& v : anim.valorVisto) v = -1;
+    for (auto& linha : anim.nascimento)
+        for (float& n : linha) n = -10;
+}
+
+// 0 a 1, desacelerando no fim
+float suavizar(float t) {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    return 1 - (1 - t) * (1 - t) * (1 - t);
+}
+
+// prédio novo cresce do chão e passa um pouco do tamanho antes de assentar
+float crescimentoDoLote(int linha, int coluna) {
+    float t = (tempo() - anim.nascimento[linha][coluna]) / 0.4f;
+    if (t >= 1) return 1;
+    return suavizar(t) * (1 + 0.3f * sinf(t * PI));
+}
 
 void avisar(const string& mensagem) {
     if (mensagem.empty()) return;
@@ -272,7 +309,9 @@ void desenharLote(const Reino& reino, int linha, int coluna, bool comArvores = t
     for (int i = 0; i < 5; i++) {   // tufos de grama
         int tx = x + 2 + (semente * (i + 3)) % 18;
         int ty = y + 2 + (semente * (i + 5) + i * 7) % 18;
-        DrawRectangle(tx, ty, 1, 1, livre ? GRAMA_CLARA : GRAMA);
+        ret(tx, ty, 0.5f, 1, livre ? GRAMA_CLARA : GRAMA);            // folhinhas de grama
+        ret(tx + 1, ty + 0.5f, 0.5f, 0.5f, livre ? GRAMA_CLARA : GRAMA);
+        ret(tx + 6 - i, ty + 9 - i * 3, 0.5f, 0.5f, livre ? GRAMA_ESCURA : CONTORNO);
     }
     if (!livre && comArvores) {
         for (int i = 0; i < 3; i++) {
@@ -283,7 +322,9 @@ void desenharLote(const Reino& reino, int linha, int coluna, bool comArvores = t
         }
     }
     if (!livre) DrawRectangle(x, y, LOTE, LOTE, Fade(CONTORNO, 0.15f));
-    DrawRectangleLines(x, y, LOTE, LOTE, Fade(CONTORNO, 0.25f));
+    ret(x, y, LOTE, 0.5f, Fade(CONTORNO, 0.22f));        // divisa fina entre os lotes
+    ret(x, y, 0.5f, LOTE, Fade(CONTORNO, 0.22f));
+    if (livre) ret(x + 0.5f, y + 0.5f, LOTE - 0.5f, 0.5f, Fade(WHITE, 0.08f));
 }
 
 // chão embaixo da grade
@@ -340,7 +381,7 @@ void desenharDestaqueLote(const Reino& reino, bool comPrevia = true) {
     int tipo = tipoEscolhido(reino);
     bool livre = loteLiberado(reino, linha, coluna) && !ehCastelo(linha, coluna) && ocupante == nullptr;
     if (ehPredio(tipo) && livre) {
-        if (comPrevia) desenhoDoEdificio(modeloCarta(carta).alvo)(r.x, r.y, 1);
+        if (comPrevia) desenharComContorno(desenhoDoEdificio(modeloCarta(carta).alvo), r.x, r.y, 1);
         contornoPulsando(r, DOURADO);
         return;
     }
@@ -373,8 +414,12 @@ void desenharEdificios(const Reino& reino) {
     for (NoEdificio* no = reino.edificios.primeiro; no != nullptr; no = no->proximo) {
         const Edificio& e = no->dados;
         Rectangle r = areaLote(e.linha, e.coluna);
-        desenhoDoEdificio(e.tipo)(r.x, r.y, 1);
-        desenharMarcasDoPredio(e, r);
+        float cresce = crescimentoDoLote(e.linha, e.coluna);
+        ret(r.x + 2, r.y + 19.5f, 18, 1.5f, Fade(CONTORNO, 0.22f));      // sombra no chão
+        comecarEscala(r.x + 11, r.y + 20, 2 - cresce, cresce);
+        desenharComContorno(desenhoDoEdificio(e.tipo), r.x, r.y, 1);
+        terminarEscala();
+        if (cresce == 1) desenharMarcasDoPredio(e, r);
     }
 }
 
@@ -398,7 +443,8 @@ void desenharGrade(const Reino& reino) {
             desenharLote(reino, l, c);
         }
     }
-    desenharCastelo(GRADE_X + 2 * LOTE, GRADE_Y + 2 * LOTE, 1);
+    ret(GRADE_X + 2 * LOTE + 1, GRADE_Y + 2 * LOTE + 20.5f, 20, 1.5f, Fade(CONTORNO, 0.22f));
+    desenharComContorno(desenharCastelo, GRADE_X + 2 * LOTE, GRADE_Y + 2 * LOTE, 1);
     desenharEdificios(reino);
     desenharFilaNoMapa(reino);
     desenharGalinhas(tempo());
@@ -409,13 +455,29 @@ void desenharGrade(const Reino& reino) {
 
 // HUD
 
-int itemTopo(Desenho icone, int valor, const char* nome, int x, Color cor = TEXTO_CLARO) {
+// quando o número muda ele pisca (verde subiu, vermelho desceu) e a diferença aparece embaixo
+int itemTopo(int indice, Desenho icone, int valor, const char* nome, int x, Color cor = TEXTO_CLARO) {
+    if (anim.valorVisto[indice] >= 0 && anim.valorVisto[indice] != valor) {
+        anim.diferenca[indice] = valor - anim.valorVisto[indice];
+        anim.pulso[indice] = 1.0f;
+    }
+    anim.valorVisto[indice] = valor;
+    float pulso = anim.pulso[indice];
+    bool subiu = anim.diferenca[indice] > 0;
+
     const char* numero = TextFormat("%d", valor);
     int largura = 12 + larguraTexto(numero, 1);
     Rectangle r = {static_cast<float>(x), 2, static_cast<float>(largura), 11};
 
     caixa(r, Fade(CONTORNO, 0.6f), Fade(CONTORNO, 0.35f));
-    icone(x + 2, 4, 1);
+    if (pulso > 0) {
+        Color destaque = subiu ? GRAMA_CLARA : CORACAO_CLARO;
+        cor = ColorLerp(cor, destaque, pulso);
+        const char* texto = TextFormat("%+d", anim.diferenca[indice]);
+        int desce = static_cast<int>((1 - pulso) * 6);
+        desenharTextoSombra(texto, x + 4, 17 + desce, 1, Fade(destaque, fminf(pulso * 2, 1)));
+    }
+    icone(x + 2, pulso > 0.7f ? 3 : 4, 1);
     desenharTexto(numero, x + 10, 4, 1, cor);
     if (mouseSobre(r)) tela.dica = nome;
     return x + largura + 2;
@@ -432,16 +494,16 @@ void desenharBarraTopo(const Jogo& jogo) {
     desenharTextoSombra(TextFormat("T%d", jogo.turno), 12, 4, 1, DOURADO);
 
     int x = 30;
-    x = itemTopo(iconeOuro, reino.estoque.ouro, "Ouro", x);
-    x = itemTopo(iconeMadeira, reino.estoque.madeira, "Madeira", x);
-    x = itemTopo(iconePedra, reino.estoque.pedra, "Pedra", x);
-    x = itemTopo(iconeComida, reino.estoque.comida, "Comida", x);
-    x = itemTopo(iconeFerro, reino.estoque.ferro, "Ferro", x);
-    x = itemTopo(iconePovo, reino.populacao, "População", x);
-    x = itemTopo(iconeSoldado, reino.soldados, "Guardas do castelo", x);
-    x = itemTopo(iconeCristal, reino.cristais, "Cristais (heróis)", x, CRISTAL);
+    x = itemTopo(0, iconeOuro, reino.estoque.ouro, "Ouro", x);
+    x = itemTopo(1, iconeMadeira, reino.estoque.madeira, "Madeira", x);
+    x = itemTopo(2, iconePedra, reino.estoque.pedra, "Pedra", x);
+    x = itemTopo(3, iconeComida, reino.estoque.comida, "Comida", x);
+    x = itemTopo(4, iconeFerro, reino.estoque.ferro, "Ferro", x);
+    x = itemTopo(5, iconePovo, reino.populacao, "População", x);
+    x = itemTopo(6, iconeSoldado, reino.soldados, "Guardas do castelo", x);
+    x = itemTopo(7, iconeCristal, reino.cristais, "Cristais (heróis)", x, CRISTAL);
     bool fraco = reino.vidaCastelo <= VIDA_CASTELO / 3;
-    itemTopo(iconeCoracao, reino.vidaCastelo, "Vida do castelo", x, fraco ? CORACAO_CLARO : TEXTO_CLARO);
+    itemTopo(8, iconeCoracao, reino.vidaCastelo, "Vida do castelo", x, fraco ? CORACAO_CLARO : TEXTO_CLARO);
 }
 
 void desenharBotao(const Botao& original) {
@@ -454,8 +516,17 @@ void desenharBotao(const Botao& original) {
     Color corTexto = sobre ? DOURADO : TEXTO_CLARO;
     int x = b.area.x, y = b.area.y, w = b.area.width, h = b.area.height;
 
-    caixaComSombra(b.area, fundo);
-    DrawRectangle(x + 2, y + 1, w - 4, 1, Fade(TEXTO_CLARO, 0.25f));
+    if (sobre && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {       // afunda quando aperta
+        y += 1;
+        caixa({b.area.x, b.area.y + 1, b.area.width, b.area.height}, CONTORNO, fundo);
+    } else {
+        caixaComSombra(b.area, fundo);
+    }
+    if (!principal) {                                          // veios da madeira
+        ret(x + 3, y + 5.5f, w - 9, 0.5f, Fade(CONTORNO, 0.18f));
+        ret(x + 8, y + 10.5f, w - 12, 0.5f, Fade(CONTORNO, 0.18f));
+        ret(x + w - 5, y + 3, 1, 0.5f, Fade(CONTORNO, 0.25f));
+    }
     if (principal) {
         b.icone(x + (w - 7) / 2, y + 4, 1);
         desenharTextoSombra(b.texto, x + (w - larguraTexto(b.texto, 1)) / 2, y + 14, 1, corTexto);
@@ -499,14 +570,23 @@ void desenharCarta(int i, const Reino& reino) {
     Rectangle r = areaCarta(i);
     bool selecionada = i == tela.cartaSelecionada;
     bool podeComprar = podePagar(reino, carta);
-    if (selecionada || mouseSobre(r)) r.y -= 5;
+    // chega deslizando de baixo (uma depois da outra) e levanta quando o mouse passa
+    float chegada = suavizar((anim.tempoMao - i * 0.07f) / 0.3f);
+    r.y += roundf((1 - chegada) * 48 - anim.cartaSobe[i]);
     int x = r.x, y = r.y;
 
     caixaComSombra(r, PERGAMINHO);
     DrawRectangle(x + 2, y + 2, 28, 3, corDoTipo(modelo.tipo));
     DrawRectangle(x + 2, y + 5, 28, 25, PERGAMINHO_ESC);
     fundoDaArte(x + 3, y + 6, modelo.tipo, i);
-    artDaCarta(carta)(x + 5, y + 7, 1);
+    desenharComContorno(artDaCarta(carta), x + 5, y + 7, 1);
+    ret(x + 3, y + 6, 26, 0.5f, Fade(CONTORNO, 0.35f));        // moldura fina da figura
+    ret(x + 3, y + 6, 0.5f, 23, Fade(CONTORNO, 0.35f));
+    ret(x + 2.5f, y + 2.5f, 27, 0.5f, Fade(WHITE, 0.35f));
+    if (modelo.raridade >= 2) {                                 // brilho passando nas raras
+        float brilho = fmodf(tempo() * 0.6f + i * 0.2f, 2.5f) * 30 - 6;
+        if (brilho < 24) ret(x + 3 + brilho, y + 6, 1.5f, 23, Fade(WHITE, 0.22f));
+    }
     if (!podeComprar) DrawRectangle(x + 3, y + 6, 26, 23, Fade(CONTORNO, 0.45f));
 
     Recursos custo = custoDaCarta(carta);
@@ -741,11 +821,12 @@ void desenharTelaTitulo() {
     desenharCenario(cenarioTitulo, tempo());
     desenharSombrasNuvens();
     desenharIlhaTitulo();
-    desenharCastelo(127, 74, 3);
+    desenharComContorno(desenharCastelo, 127, 74, 3);
     desenharBrasas();
 
     int x = (VL - larguraTexto("KINGDOMS", 4)) / 2;
-    desenharTextoContorno("KINGDOMS", x, 10, 4, BRILHO_OURO, DOURADO_ESCURO, CONTORNO);
+    int flutua = static_cast<int>(roundf(sinf(tempo() * 1.5f) * 1.5f));
+    desenharTextoContorno("KINGDOMS", x, 10 + flutua, 4, BRILHO_OURO, DOURADO_ESCURO, CONTORNO);
     desenharFaixa(96, 46, 128, 15);
     textoCentralizado("Ashes of the Fallen", 50, 1, TEXTO_CLARO);
     if (static_cast<int>(tempo() * 2) % 2 == 0) {
@@ -771,7 +852,7 @@ void desenharTelaDerrota(const Jogo& jogo) {
     desenharCenario(cenarioTitulo, tempo());
     DrawRectangle(0, 0, VL, VA, Fade(CONTORNO, 0.55f));
     desenharIlhaTitulo();
-    desenharCastelo(127, 74, 3);
+    desenharComContorno(desenharCastelo, 127, 74, 3);
     DrawRectangle(127, 62, 66, 76, Fade(CONTORNO, 0.35f));
     desenharChamas();
     desenharBrasas();
@@ -798,6 +879,9 @@ void desenharChaoDoReino(const Reino& reino) {
 
 Previa3D previaDaCarta(const Reino& reino) {
     Previa3D previa;
+    for (int l = 0; l < GRADE; l++) {
+        for (int c = 0; c < GRADE; c++) previa.crescimento[l][c] = crescimentoDoLote(l, c);
+    }
     int linha, coluna;
     int carta = cartaEscolhida(reino);
     if (carta < 0 || !ehPredio(modeloCarta(carta).tipo) || !loteSobMouse(reino, linha, coluna)) return previa;
@@ -888,6 +972,7 @@ void comecarBatalha(Jogo& jogo) {
     if (!jogo.emBatalha) return;
     comecarAnimacaoBatalha(jogo.batalha);
     tela.atual = TELA_BATALHA;
+    anim.escurecer = 1;
 }
 
 void executarAcao(Jogo& jogo, int acao) {
@@ -1022,8 +1107,42 @@ void atualizarChamines(const Reino& reino, float dt) {
     }
 }
 
+// repara em prédio novo (ou que subiu de nível) pra fazer ele crescer e soltar poeira
+void repararNosPredios(const Reino& reino) {
+    for (int l = 0; l < GRADE; l++) {
+        for (int c = 0; c < GRADE; c++) {
+            const Edificio* e = buscarEdificioNoLote(reino.edificios, l, c);
+            int nivel = e ? e->nivel : 0;
+            if (nivel > anim.nivelVisto[l][c]) {
+                anim.nascimento[l][c] = tempo();
+                Rectangle r = areaLote(l, c);
+                for (int i = 0; i < 4; i++) soltarFumaca(r.x + 3 + i * 5, r.y + 16);
+            }
+            anim.nivelVisto[l][c] = nivel;
+        }
+    }
+}
+
+void atualizarAnimacoes(const Jogo& jogo, float dt) {
+    repararNosPredios(jogo.reino);
+    if (jogo.turno != anim.turnoVisto) {       // mão nova: as cartas entram de novo
+        anim.turnoVisto = jogo.turno;
+        anim.tempoMao = 0;
+    }
+    anim.tempoMao += dt;
+    int sobMouse = cartaSobMouse(jogo.reino);
+    for (int i = 0; i < TAMANHO_MAO; i++) {
+        float alvo = (i == tela.cartaSelecionada || i == sobMouse) ? 5.0f : 0.0f;
+        anim.cartaSobe[i] += (alvo - anim.cartaSobe[i]) * fminf(dt * 20, 1);
+    }
+    for (float& p : anim.pulso) {
+        if (p > 0) p -= dt * 0.8f;
+    }
+}
+
 void atualizarTelaReino(Jogo& jogo) {
     float dt = GetFrameTime();
+    atualizarAnimacoes(jogo, dt);
     atualizarGalinhasDoReino(jogo.reino, dt);
     atualizarChamines(jogo.reino, dt);
     if (catalogo.aberto) {
@@ -1053,6 +1172,7 @@ void atualizarTelaReino(Jogo& jogo) {
 void atualizarBatalha(Jogo& jogo) {
     if (!atualizarTelaBatalha(jogo.batalha, GetFrameTime())) return;
     string resultado = concluirBatalha(jogo);
+    anim.escurecer = 1;
     if (jogo.derrota) {
         tela.atual = TELA_DERROTA;
         return;
@@ -1069,6 +1189,8 @@ void novoJogo(Jogo& jogo) {
     tela.cartaSelecionada = -1;
     tela.tempoTransicao = 1.3f;
     fazendasContadas = -1;
+    zerarAnimacoes();
+    anim.escurecer = 1;
     resetarCamera3D();
 }
 
@@ -1081,7 +1203,8 @@ void abrirJanela() {
     ToggleBorderlessWindowed();   // já abre em tela cheia (F11 volta pra janela)
     SetExitKey(KEY_NULL);   // ESC não fecha o jogo
     SetTargetFPS(60);
-    alvo = LoadRenderTexture(VL, VA);
+    alvo = LoadRenderTexture(VL * FATOR, VA * FATOR);      // cada unidade = 2 pixels de verdade
+    zerarAnimacoes();
     SetTextureFilter(alvo.texture, TEXTURE_FILTER_POINT);
     for (Brasa& b : tela.brasas) reiniciarBrasa(b, true);
     Rectangle planalto = {GRADE_X - 6.0f, GRADE_Y - 8.0f, GRADE * LOTE + 12.0f, GRADE * LOTE + 32.0f};
@@ -1108,12 +1231,14 @@ void atualizarInterface(Jogo& jogo) {
     atualizarBrasas(dt);
     if (tela.tempoMensagem > 0) tela.tempoMensagem -= dt;
     if (tela.tempoTransicao > 0) tela.tempoTransicao -= dt;
+    if (anim.escurecer > 0) anim.escurecer -= dt * 2.5f;
 
     switch (tela.atual) {
         case TELA_TITULO:
             if (IsKeyPressed(KEY_ENTER) || IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                 tela.atual = TELA_REINO;
                 tela.tempoTransicao = 1.3f;
+                anim.escurecer = 1;
             }
             break;
         case TELA_BATALHA:
@@ -1132,22 +1257,27 @@ void desenharInterface(const Jogo& jogo) {
     tela.dica = nullptr;
     if (tela.atual == TELA_REINO && modo3D) {
         BeginTextureMode(texturaDoChao());       // o chão do 3D é desenhado antes
+        comecarZoom();
         desenharChaoDoReino(jogo.reino);
+        terminarZoom();
         EndTextureMode();
     }
     BeginTextureMode(alvo);
+    comecarZoom();
     switch (tela.atual) {
         case TELA_TITULO: desenharTelaTitulo(); break;
         case TELA_BATALHA: desenharTelaBatalha(jogo.batalha, jogo.reino, tela.resumoDoTurno); break;
         case TELA_DERROTA: desenharTelaDerrota(jogo); break;
         default: desenharTelaReino(jogo); break;
     }
+    if (anim.escurecer > 0) DrawRectangle(0, 0, VL, VA, Fade(CONTORNO, anim.escurecer));   // troca de tela suave
+    terminarZoom();
     EndTextureMode();
 
     // altura negativa: a textura vem invertida
     BeginDrawing();
     ClearBackground(BLACK);
-    Rectangle origem = {0, 0, static_cast<float>(VL), -static_cast<float>(VA)};
+    Rectangle origem = {0, 0, static_cast<float>(VL * FATOR), -static_cast<float>(VA * FATOR)};
     DrawTexturePro(alvo.texture, origem, areaNaJanela(), {0, 0}, 0.0f, WHITE);
     EndDrawing();
 }

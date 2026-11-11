@@ -90,6 +90,7 @@ A janela pode ser redimensionada à vontade.
 - [x] Etapa 1 — esqueleto, menu principal e validação de entrada
 - [x] Interface gráfica em pixel art — título, grade do reino, cartas e painéis
 - [x] Cenário vivo — bosques com 5 tipos de árvore, vento, riacho, galinhas e fumaça
+- [x] Resolução interna 640x360 com detalhes finos, contorno nos sprites e animações leves
 - [x] Vista meio 3D com câmera que gira, janela redimensionável e tela cheia
 - [x] Etapa 3 — economia (produção, consumo, construções)
 - [x] Etapa 4 — lista encadeada de edifícios
@@ -154,6 +155,7 @@ g++ -std=c++17 -Wall -Wextra testes.cpp jogo.cpp reino.cpp cartas.cpp herois.cpp
 | `natureza.h/.cpp` | Cenário vivo: árvores variadas, riacho, flores, galinhas e fumaça |
 | `visao3d.h/.cpp` | Vista meio 3D: chão em relevo, figuras em pé, câmera que gira |
 | `paleta.h` | Cores do jogo |
+| `pincel.h/.cpp` | Retângulo em meia unidade, contorno fino dos sprites e escala das animações |
 | `reino.h/.cpp` | Edifícios, jogadas das cartas, desfazer, fila e turno |
 | `cartas.h/.cpp` | As 18 cartas e o baralho (monte, mão, descarte) |
 | `herois.h/.cpp` | Os 9 heróis e a invocação |

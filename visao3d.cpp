@@ -1,6 +1,8 @@
 #include "visao3d.h"
 #include "fonte.h"
 #include "paleta.h"
+#include "pincel.h"
+#include "sprites.h"
 #include "rlgl.h"
 #include <cmath>
 
@@ -50,9 +52,20 @@ float alturaDoChao(float x, float y) {
 
 // desenha uma figura nova numa textura (fundo transparente)
 RenderTexture2D assar(int largura, int altura) {
-    RenderTexture2D rt = LoadRenderTexture(largura, altura);
+    RenderTexture2D rt = LoadRenderTexture(largura * FATOR, altura * FATOR);
     SetTextureFilter(rt.texture, TEXTURE_FILTER_POINT);
     return rt;
+}
+
+void comecarAssado(RenderTexture2D& rt) {
+    BeginTextureMode(rt);
+    ClearBackground(BLANK);
+    comecarZoom();
+}
+
+void terminarAssado() {
+    terminarZoom();
+    EndTextureMode();
 }
 
 void assarArvores() {
@@ -61,26 +74,23 @@ void assarArvores() {
             for (int tom = 0; tom < 4; tom++)
                 for (int q = 0; q < 3; q++) {
                     RenderTexture2D& rt = texArvore[tipo][tam][tom][q] = assar(24, 30);
-                    BeginTextureMode(rt);
-                    ClearBackground(BLANK);
+                    comecarAssado(rt);
                     desenharArvoreVariada(12, 28, tipo, tam, tom, q - 1.0f);
-                    EndTextureMode();
+                    terminarAssado();
                 }
 }
 
 void assarPredios() {
     for (int i = 0; i < TOTAL_TIPOS_EDIFICIO; i++) {
-        texPredio[i] = assar(24, 28);
-        BeginTextureMode(texPredio[i]);
-        ClearBackground(BLANK);
-        mapa.predios[i](1, 5, 1);
-        EndTextureMode();
+        texPredio[i] = assar(24, 30);
+        comecarAssado(texPredio[i]);
+        desenharComContorno(mapa.predios[i], 1, 7, 1);
+        terminarAssado();
     }
-    texCastelo = assar(24, 28);
-    BeginTextureMode(texCastelo);
-    ClearBackground(BLANK);
-    desenharCastelo(1, 5, 1);
-    EndTextureMode();
+    texCastelo = assar(24, 30);
+    comecarAssado(texCastelo);
+    desenharComContorno(desenharCastelo, 1, 7, 1);
+    terminarAssado();
 }
 
 void assarGalinhas() {
@@ -88,17 +98,16 @@ void assarGalinhas() {
         for (int p = 0; p < 2; p++)
             for (int c = 0; c < 2; c++) {
                 RenderTexture2D& rt = texGalinha[d][p][c] = assar(9, 8);
-                BeginTextureMode(rt);
-                ClearBackground(BLANK);
+                comecarAssado(rt);
                 desenharGalinhaEm(4, 6, d == 0 ? -1 : 1, p, c == 1);
-                EndTextureMode();
+                terminarAssado();
             }
 }
 
 // figura em pé, sempre virada pra câmera (só gira em volta do eixo y)
 // (x, y) = pé da figura no mapa 2D; largura/altura em pixels
-void figura(const Texture2D& tex, float x, float y, float afundar, Color tinta) {
-    float w = tex.width / PIXEL, h = tex.height / PIXEL;
+void figura(const Texture2D& tex, float x, float y, float afundar, Color tinta, float cresce = 1.0f) {
+    float w = tex.width / (PIXEL * FATOR) * (2.0f - cresce), h = tex.height / (PIXEL * FATOR) * cresce;
     Vector3 base = noMundo(x, y, alturaDoChao(x, y) - afundar / PIXEL);
     Vector3 frente = {camera.target.x - camera.position.x, 0, camera.target.z - camera.position.z};
     float tamanho = sqrtf(frente.x * frente.x + frente.z * frente.z);
@@ -176,12 +185,13 @@ Vector2 peDoLote(int linha, int coluna) {
     return {mapa.gradeX + coluna * mapa.lote + 11.0f, mapa.gradeY + linha * mapa.lote + 17.0f};
 }
 
-void desenharPredios(const Reino& reino) {
+void desenharPredios(const Reino& reino, const Previa3D& previa) {
     Vector2 castelo = peDoLote(2, 2);
     figura(texCastelo.texture, castelo.x, castelo.y, 0, WHITE);
     for (NoEdificio* no = reino.edificios.primeiro; no != nullptr; no = no->proximo) {
         Vector2 pe = peDoLote(no->dados.linha, no->dados.coluna);
-        figura(texPredio[no->dados.tipo].texture, pe.x, pe.y, 0, WHITE);
+        float cresce = previa.crescimento[no->dados.linha][no->dados.coluna];
+        figura(texPredio[no->dados.tipo].texture, pe.x, pe.y, 0, WHITE, cresce);
     }
 }
 
@@ -260,7 +270,7 @@ void posicionarCamera() {
 
 void iniciarVisao3D(const InfoMapa& info) {
     mapa = info;
-    chao = LoadRenderTexture(mapa.largura, mapa.altura);
+    chao = LoadRenderTexture(mapa.largura * FATOR, mapa.altura * FATOR);
     SetTextureFilter(chao.texture, TEXTURE_FILTER_POINT);
     descarte = LoadShaderFromMemory(nullptr, SHADER_DESCARTE);
     camera.up = {0, 1, 0};
@@ -324,6 +334,7 @@ bool mouseNoMapa3D(Vector2 mouse, Vector2& ponto) {
 void desenharCena3D(const Cenario& cenario, const Reino& reino, const Previa3D& previa, float tempo) {
     ClearBackground(CEU);                    // limpa a profundidade do quadro anterior também
     DrawRectangleGradientV(0, 0, mapa.largura, mapa.altura, CEU, CEU_HORIZONTE);
+    terminarZoom();                          // o 3D não usa a ampliação do 2D
     BeginMode3D(camera);
     rlDisableBackfaceCulling();
     desenharTerreno();
@@ -331,7 +342,7 @@ void desenharCena3D(const Cenario& cenario, const Reino& reino, const Previa3D& 
     BeginShaderMode(descarte);
     desenharArvoresDoCenario(cenario, tempo);
     desenharFlorestaDosLotes(reino, tempo);
-    desenharPredios(reino);
+    desenharPredios(reino, previa);
     desenharGalinhas3D(tempo);
     EndShaderMode();
 
@@ -339,6 +350,7 @@ void desenharCena3D(const Cenario& cenario, const Reino& reino, const Previa3D& 
     desenharFumaca3D();
     rlEnableBackfaceCulling();
     EndMode3D();
+    comecarZoom();
     desenharNumerosDaFila(reino);
     desenharNiveis(reino);
 }
