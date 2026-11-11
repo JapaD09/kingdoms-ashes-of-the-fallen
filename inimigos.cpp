@@ -1,4 +1,5 @@
 #include "inimigos.h"
+#include "economia.h"
 #include "aleatorio.h"
 
 namespace {
@@ -26,7 +27,8 @@ const ReinoInimigo& reinoInimigo(int id) {
 }
 
 int poderDaOnda(int turno) {
-    return 3 + turno * 3 + turno * turno / 10;
+    const Economia& e = economia();
+    return 3 + turno * e.ondaPorTurno + turno * turno / e.ondaDivisor;
 }
 
 bool turnoDeChefe(int turno) {

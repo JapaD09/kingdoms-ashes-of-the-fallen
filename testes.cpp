@@ -1,6 +1,6 @@
 // Testes do reino e da lista (sem janela)
 // g++ -std=c++17 testes.cpp jogo.cpp reino.cpp cartas.cpp herois.cpp inimigos.cpp combate.cpp
-//     estruturas.cpp algoritmos.cpp aleatorio.cpp -o testes
+//     expedicao.cpp estruturas.cpp algoritmos.cpp aleatorio.cpp -o testes
 
 #include <iostream>
 #include <string>
@@ -8,6 +8,7 @@
 #include "algoritmos.h"
 #include "jogo.h"
 #include "aleatorio.h"
+#include "economia.h"
 
 using namespace std;
 
@@ -366,7 +367,111 @@ static void testarCicloDoJogo() {
     encerrarJogo(jogo);
 }
 
+// mapa da expedição, saque e combate por ações
+static void testarExpedicao() {
+    cout << "Expedicao\n";
+    semearAleatorio(21);
+    bool sempreValido = true;
+    for (int i = 0; i < 200; i++) {
+        MapaExpedicao mapa;
+        gerarMapa(mapa);
+        sempreValido = sempreValido && mapaValido(mapa) && mapa.total <= MAX_NOS;
+        liberarMapa(mapa);
+    }
+    conferir(sempreValido, "200 mapas: sempre existe caminho ate o chefe");
+
+    MapaExpedicao vazio;
+    bool visitados[MAX_NOS] = {};
+    conferir(!existeCaminho(vazio.entrada, vazio.chefe, visitados) && !mapaValido(vazio), "mapa vazio nao tem caminho");
+    liberarMapa(vazio);
+
+    Jogo jogo;
+    iniciarJogo(jogo, 4);
+    conferir(!partirEmExpedicao(jogo).empty(), "sem heroi nao sai em expedicao");
+    jogo.reino.herois.estrelas[0] = jogo.reino.herois.estrelas[1] = 5;
+    jogo.reino.herois.naEquipe[0] = jogo.reino.herois.naEquipe[1] = true;
+    int comida = jogo.reino.estoque.comida, ouro = jogo.reino.estoque.ouro;
+    conferir(partirEmExpedicao(jogo).empty() && jogo.expedicao.ativa, "com herois a expedicao comeca");
+    conferir(jogo.reino.estoque.comida == comida - CUSTO_EXPEDICAO, "expedicao gasta comida");
+    conferir(!partirEmExpedicao(jogo).empty(), "so uma expedicao por turno");
+
+    Expedicao& exp = jogo.expedicao;
+    conferir(!avancar(exp, 9).empty(), "caminho que nao existe e recusado");
+    exp.saque.ouro = 40;
+    conferir(jogo.reino.estoque.ouro == ouro, "saque ainda nao e do reino");
+
+    exp.atual->caminhos[0]->tipo = NO_COMBATE;          // força um combate pra testar as ações
+    avancar(exp, 0);
+    conferir(exp.fase == EXP_COMBATE && inimigosVivos(exp) > 0, "no de combate comeca a luta");
+    int vida = exp.grupo[0].vida + exp.grupo[1].vida;
+    agirNoCombate(exp, 99, 0);
+    conferir(exp.rodada == 0, "acao invalida nao gasta a rodada");
+    exp.pocoes = 0;
+    agirNoCombate(exp, USAR_POCAO, 0);
+    conferir(exp.rodada == 0, "sem pocao nao gasta a rodada");
+    agirNoCombate(exp, DEFENDER, 0);
+    int perdeuDefendendo = vida - exp.grupo[0].vida - exp.grupo[1].vida;
+    conferir(exp.rodada == 1 && perdeuDefendendo >= 0, "defender passa a rodada");
+    while (exp.fase == EXP_COMBATE) agirNoCombate(exp, ATACAR, 0);
+    conferir(exp.fase == EXP_AVISO && exp.saque.ouro > 40, "vencer o combate da saque");
+    continuarExpedicao(exp);
+    voltarAoReino(exp);
+    conferir(exp.fase == EXP_FIM && exp.desfecho == VOLTOU, "da pra voltar pelo mapa");
+    int saque = exp.saque.ouro;
+    concluirExpedicao(jogo);
+    conferir(jogo.reino.estoque.ouro >= ouro + saque && !exp.ativa, "voltando, o saque entra no reino");
+    conferir(exp.mapa.todos == nullptr, "mapa liberado no fim");
+
+    // derrota: perde o saque e os heróis ficam feridos
+    jogo.reino.explorouNoTurno = false;
+    partirEmExpedicao(jogo);
+    exp.saque.ouro = 500;
+    ouro = jogo.reino.estoque.ouro;
+    exp.atual->caminhos[0]->tipo = NO_COMBATE;
+    avancar(exp, 0);
+    for (int i = 0; i < exp.tamanho; i++) exp.grupo[i].vida = 1;
+    for (int i = 0; i < exp.totalInimigos; i++) exp.inimigos[i].ataque = 50;
+    agirNoCombate(exp, DEFENDER, 0);
+    conferir(exp.desfecho == DERROTADA, "grupo sem vida perde a expedicao");
+    concluirExpedicao(jogo);
+    conferir(jogo.reino.estoque.ouro == ouro && jogo.reino.feridos == 2, "derrota: saque perdido e herois feridos");
+
+    // carta de recompensa
+    jogo.batalha.vitoria = true;
+    jogo.emBatalha = true;
+    jogo.batalha.acabou = true;
+    int cartasAntes = totalDeCartas(jogo.reino.baralho);
+    concluirBatalha(jogo);
+    conferir(jogo.escolhendoCarta, "vencer a defesa oferece 3 cartas");
+    conferir(jogo.recompensa[0] != jogo.recompensa[1] && jogo.recompensa[1] != jogo.recompensa[2], "as cartas oferecidas sao diferentes");
+    escolherRecompensa(jogo, 1);
+    conferir(totalDeCartas(jogo.reino.baralho) == cartasAntes + 1 && !jogo.escolhendoCarta, "a carta escolhida entra no baralho");
+
+    // vitória da campanha
+    for (int r = 0; r < TOTAL_REINOS - 1; r++) jogo.chefeDerrotado[r] = true;
+    conferir(proximaRegiao(jogo) == TOTAL_REINOS - 1 && !jogo.vitoria, "falta so o ultimo reino");
+    jogo.reino.feridos = 0;
+    jogo.reino.explorouNoTurno = false;
+    jogo.reino.estoque.comida = 100;
+    partirEmExpedicao(jogo);
+    exp.desfecho = CHEFE_VENCIDO;
+    concluirExpedicao(jogo);
+    conferir(jogo.vitoria && chefesDerrotados(jogo) == TOTAL_REINOS, "6 chefes derrotados = vitoria");
+    conferir(pontuacao(jogo) >= 3000, "pontuacao conta os chefes");
+    encerrarJogo(jogo);
+}
+
 int main() {
+    // os testes usam os preços de tabela, sem o ajuste de balanceamento
+    Economia deTeste;
+    deTeste.custoPct = 100;
+    deTeste.ondaPorTurno = 3;
+    deTeste.ondaDivisor = 10;
+    deTeste.materiaisPct = 100;
+    deTeste.producaoPct = 100;
+    economia() = deTeste;
+    aplicarEconomia();
+
     testarCatalogo();
     testarPilhaEFila();
     testarDesfazerEOrdens();
@@ -379,6 +484,7 @@ int main() {
     testarBatalha();
     silenciosoOk = true;
     testarCicloDoJogo();
+    testarExpedicao();
     cout << (falhas == 0 ? "\nTudo certo!\n" : "\nTem falha!\n");
     return falhas == 0 ? 0 : 1;
 }

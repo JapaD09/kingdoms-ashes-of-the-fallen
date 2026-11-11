@@ -1,4 +1,5 @@
 #include "combate.h"
+#include "economia.h"
 #include "inimigos.h"
 #include "aleatorio.h"
 
@@ -42,7 +43,7 @@ void bonusGerais(const Reino& reino, int& ataque, int& vida) {
         if (no->dados.tipo == OFICINA) ataque += no->dados.nivel;
     }
     for (int h = 0; h < TOTAL_HEROIS; h++) {
-        if (!reino.herois.naEquipe[h]) continue;
+        if (!reino.herois.naEquipe[h] || reino.feridos > 0) continue;
         int poder = modeloHeroi(h).poder;
         if (poder == AURA_ATAQUE) ataque += 1;
         if (poder == AURA_VIDA) vida += 5;
@@ -66,11 +67,12 @@ void montarAliados(Batalha& b, const Reino& reino) {
     int ataque, vida;
     bonusGerais(reino, ataque, vida);
 
-    // heróis vão na frente
+    // heróis vão na frente (se não estiverem feridos de uma expedição perdida)
     for (int h = 0; h < TOTAL_HEROIS; h++) {
-        if (!reino.herois.naEquipe[h]) continue;
+        if (!reino.herois.naEquipe[h] || reino.feridos > 0) continue;
         const ModeloHeroi& modelo = modeloHeroi(h);
-        Lutador l = criarTropa(-1, vidaDoHeroi(reino.herois, h), ataqueDoHeroi(reino.herois, h),
+        Lutador l = criarTropa(-1, vidaDoHeroi(reino.herois, h) + bonusVidaHerois(reino),
+                               ataqueDoHeroi(reino.herois, h) + bonusAtaqueHerois(reino),
                                modelo.defesa, modelo.distancia, modelo.alvos > 0 ? modelo.alvos : 1);
         l.heroi = h;
         l.cura = modelo.poder == CURA ? 5 : 0;
@@ -269,7 +271,7 @@ void rodadaDeBatalha(Batalha& b) {
 }
 
 void recompensaDaBatalha(const Batalha& b, int& ouro, int& cristais) {
-    ouro = 15 + 3 * contarDoLado(b, INIMIGO);
+    ouro = economia().ouroPorVitoria + 3 * contarDoLado(b, INIMIGO);
     cristais = 2 + b.turno / 4 + (turnoDeChefe(b.turno) ? 3 : 0);
 }
 

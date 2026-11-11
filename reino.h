@@ -32,6 +32,7 @@ struct ModeloEdificio {
 const int TAMANHO_GRADE = 5;
 const int NIVEL_MAXIMO = 3;
 const int VIDA_CASTELO = 100;
+const int MAX_ARSENAL = 3;
 
 struct Reino {
     Recursos estoque;
@@ -46,6 +47,12 @@ struct Reino {
     FilaConstrucao ordens;      // construções esperando recurso
     Baralho baralho;
     ColecaoHerois herois;
+    // o que as expedições trouxeram
+    int pocoes = 1;                 // usadas no combate da expedição
+    int armas = 0;                  // +1 de ataque nos heróis cada (até 3)
+    int armaduras = 0;              // +3 de vida nos heróis cada (até 3)
+    int feridos = 0;                // turnos que os heróis ficam fora depois de perder uma expedição
+    bool explorouNoTurno = false;
 };
 
 void iniciarReino(Reino& reino);
@@ -81,6 +88,10 @@ std::string recrutarGuardas(Reino& reino);
 
 // gasta cristais e tira um herói. heroi = id sorteado (-1 se não deu)
 std::string invocar(Reino& reino, int& heroi);
+
+// bônus que os itens das expedições dão aos heróis
+int bonusAtaqueHerois(const Reino& reino);
+int bonusVidaHerois(const Reino& reino);
 
 // quanto muda no próximo turno
 Recursos previsaoDoTurno(const Reino& reino);

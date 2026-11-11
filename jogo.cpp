@@ -9,6 +9,12 @@ void iniciarJogo(Jogo& jogo, unsigned semente) {
     jogo.rodando = true;
     jogo.derrota = false;
     jogo.emBatalha = false;
+    jogo.vitoria = false;
+    jogo.escolhendoCarta = false;
+    jogo.expedicoesFeitas = 0;
+    for (bool& c : jogo.chefeDerrotado) c = false;
+    liberarMapa(jogo.expedicao.mapa);
+    jogo.expedicao = Expedicao();
     iniciarReino(jogo.reino);
     sortearOrdemDosReinos(jogo.ordemInimigos);
     liberarArvore(jogo.catalogo);
@@ -17,7 +23,55 @@ void iniciarJogo(Jogo& jogo, unsigned semente) {
 
 void encerrarJogo(Jogo& jogo) {
     liberarReino(jogo.reino);
+    liberarMapa(jogo.expedicao.mapa);
     liberarArvore(jogo.catalogo);
+}
+
+int chefesDerrotados(const Jogo& jogo) {
+    int total = 0;
+    for (bool c : jogo.chefeDerrotado) total += c;
+    return total;
+}
+
+// as regiões vão na ordem dos reinos: goblins primeiro, o dragão por último
+int proximaRegiao(const Jogo& jogo) {
+    for (int r = 0; r < TOTAL_REINOS; r++) {
+        if (!jogo.chefeDerrotado[r]) return r;
+    }
+    return -1;
+}
+
+string partirEmExpedicao(Jogo& jogo) {
+    if (jogo.emBatalha || jogo.derrota || jogo.vitoria) return "Agora não.";
+    int regiao = proximaRegiao(jogo);
+    if (regiao < 0) return "Não sobrou nenhum reino inimigo.";
+    return iniciarExpedicao(jogo.expedicao, jogo.reino, jogo.catalogo, regiao, chefesDerrotados(jogo));
+}
+
+string concluirExpedicao(Jogo& jogo) {
+    Expedicao& exp = jogo.expedicao;
+    if (!exp.ativa) return "";
+    if (exp.desfecho == CHEFE_VENCIDO) jogo.chefeDerrotado[exp.regiao] = true;
+    jogo.expedicoesFeitas++;
+    string resumo = encerrarExpedicao(exp, jogo.reino);
+    if (proximaRegiao(jogo) < 0) jogo.vitoria = true;
+    return resumo;
+}
+
+string escolherRecompensa(Jogo& jogo, int opcao) {
+    if (!jogo.escolhendoCarta) return "";
+    jogo.escolhendoCarta = false;
+    if (opcao < 0 || opcao > 2) return "Você ficou sem a carta.";
+    int carta = jogo.recompensa[opcao];
+    ganharCarta(jogo.reino.baralho, carta);
+    return string(modeloCarta(carta).nome) + " entrou no baralho. Vem na próxima mão.";
+}
+
+int pontuacao(const Jogo& jogo) {
+    int pontos = chefesDerrotados(jogo) * 500 + jogo.reino.vidaCastelo * 5 + jogo.reino.estoque.ouro;
+    pontos += jogo.reino.edificios.tamanho * 20;
+    if (jogo.vitoria && jogo.turno < 40) pontos += (40 - jogo.turno) * 25;     // quanto mais rápido, melhor
+    return pontos;
 }
 
 // ids embaralhados de propósito pra árvore não virar uma "lista torta"
@@ -57,6 +111,12 @@ string concluirBatalha(Jogo& jogo) {
         jogo.derrota = true;
         return resultado;
     }
+    if (jogo.batalha.vitoria) {
+        sortearRecompensa(jogo.recompensa);
+        jogo.escolhendoCarta = true;
+    }
+    jogo.reino.explorouNoTurno = false;
+    if (jogo.reino.feridos > 0) jogo.reino.feridos--;
     descartarTudo(jogo.reino.baralho);
     comprarMao(jogo.reino.baralho);
     jogo.turno++;

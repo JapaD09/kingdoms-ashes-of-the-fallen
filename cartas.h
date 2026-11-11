@@ -56,6 +56,12 @@ bool devolverCarta(Baralho& baralho, int carta);
 void descartarTudo(Baralho& baralho);
 
 int totalDeCartas(const Baralho& baralho);
+
+// recompensa da vitória: 3 cartas diferentes pra escolher uma
+void sortearRecompensa(int opcoes[3]);
+
+// a carta ganha vai pro topo do monte (vem na próxima mão)
+void ganharCarta(Baralho& baralho, int carta);
 void liberarBaralho(Baralho& baralho);
 
 #endif

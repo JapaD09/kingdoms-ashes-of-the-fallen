@@ -1,4 +1,5 @@
 #include "reino.h"
+#include "economia.h"
 #include <cstdlib>
 
 using namespace std;
@@ -6,7 +7,7 @@ using namespace std;
 namespace {
 
 // nome, custo, produção por nível, defesa, tropa, tropas por nível, moradores
-const ModeloEdificio MODELOS[TOTAL_TIPOS_EDIFICIO] = {
+const ModeloEdificio TABELA[TOTAL_TIPOS_EDIFICIO] = {
     {"Fazenda",      {30, 20, 0, 0, 0},    {0, 0, 0, 8, 0},  0, SEM_TROPA, 0, 0},
     {"Serraria",     {35, 15, 0, 0, 0},    {0, 6, 0, 0, 0},  0, SEM_TROPA, 0, 0},
     {"Quartel",      {40, 25, 10, 0, 0},   {},               0, SOLDADO, 3, 0},
@@ -21,11 +22,19 @@ const ModeloEdificio MODELOS[TOTAL_TIPOS_EDIFICIO] = {
     {"Torre Arcana", {80, 10, 30, 0, 20},  {},               0, MAGO, 1, 0},
 };
 
+// cópia da tabela com os preços já ajustados pela economia
+ModeloEdificio MODELOS[TOTAL_TIPOS_EDIFICIO];
+bool modelosProntos = false;
+Economia economiaAtual;
+
+int ajustar(int valor, int pct) {
+    return (valor * pct + 50) / 100;
+}
+
 const Recursos GANHO_CARAVANA = {50, 20, 10, 0, 0};
 
 const int HABITANTES_POR_COMIDA = 5;
 const int SOLDADOS_POR_COMIDA = 3;
-const int HABITANTES_POR_OURO = 2;   // imposto
 const int PRECO_GUARDAS = 20;
 
 int consumoDeComida(const Reino& reino) {
@@ -66,6 +75,23 @@ bool comecaCom(const string& texto, const char* inicio) {
 
 }
 
+Economia& economia() {
+    return economiaAtual;
+}
+
+void aplicarEconomia() {
+    int pct = economiaAtual.custoPct;
+    for (int i = 0; i < TOTAL_TIPOS_EDIFICIO; i++) {
+        MODELOS[i] = TABELA[i];
+        Recursos& c = MODELOS[i].custo;
+        c = {ajustar(c.ouro, pct), ajustar(c.madeira, pct), ajustar(c.pedra, pct), ajustar(c.comida, pct), ajustar(c.ferro, pct)};
+        Recursos& p = MODELOS[i].producao;
+        int prod = economiaAtual.producaoPct;
+        p = {ajustar(p.ouro, prod), ajustar(p.madeira, prod), ajustar(p.pedra, prod), ajustar(p.comida, prod), ajustar(p.ferro, prod)};
+    }
+    modelosProntos = true;
+}
+
 void somar(Recursos& destino, const Recursos& valor, int vezes) {
     destino.ouro += valor.ouro * vezes;
     destino.madeira += valor.madeira * vezes;
@@ -82,7 +108,14 @@ bool temRecursos(const Recursos& estoque, const Recursos& custo) {
 
 void iniciarReino(Reino& reino) {
     liberarReino(reino);
-    reino.estoque = {100, 60, 30, 80, 10};
+    aplicarEconomia();
+    int mat = economiaAtual.materiaisPct;
+    reino.estoque = {economiaAtual.ouroInicial, ajustar(60, mat), ajustar(30, mat), 80, ajustar(10, mat)};
+    reino.pocoes = 1;
+    reino.armas = 0;
+    reino.armaduras = 0;
+    reino.feridos = 0;
+    reino.explorouNoTurno = false;
     reino.populacao = 20;
     reino.soldados = 6;
     reino.cristais = 10;
@@ -106,6 +139,7 @@ void liberarReino(Reino& reino) {
 }
 
 const ModeloEdificio& modeloEdificio(int tipo) {
+    if (!modelosProntos) aplicarEconomia();
     return MODELOS[tipo];
 }
 
@@ -413,13 +447,21 @@ string invocar(Reino& reino, int& heroi) {
     return estrelas > 1 ? texto + " subiu pra " + to_string(estrelas) + " estrelas!" : texto + " chegou!";
 }
 
+int bonusAtaqueHerois(const Reino& reino) {
+    return reino.armas < MAX_ARSENAL ? reino.armas : MAX_ARSENAL;
+}
+
+int bonusVidaHerois(const Reino& reino) {
+    return 3 * (reino.armaduras < MAX_ARSENAL ? reino.armaduras : MAX_ARSENAL);
+}
+
 // soma a produção de todos os edifícios
 Recursos previsaoDoTurno(const Reino& reino) {
     Recursos total;
     for (NoEdificio* no = reino.edificios.primeiro; no != nullptr; no = no->proximo) {
         somar(total, MODELOS[no->dados.tipo].producao, no->dados.nivel);
     }
-    total.ouro += reino.populacao / HABITANTES_POR_OURO;
+    total.ouro += reino.populacao * economiaAtual.impostoPorDez / 10;     // imposto
     total.comida -= consumoDeComida(reino);
     return total;
 }

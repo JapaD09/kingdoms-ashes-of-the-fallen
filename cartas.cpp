@@ -6,11 +6,11 @@ namespace {
 
 // custo de prédio e tropa fica zerado aqui porque vem do edifício
 const ModeloCarta CARTAS[TOTAL_CARTAS] = {
-    {"Fazenda",       CARTA_PREDIO,   FAZENDA,      {}, 1, "+8 comida\npor nível"},
-    {"Serraria",      CARTA_PREDIO,   SERRARIA,     {}, 1, "+6 madeira\npor nível"},
-    {"Mina",          CARTA_PREDIO,   MINA,         {}, 1, "+4 pedra e\n+2 ferro"},
+    {"Fazenda",       CARTA_PREDIO,   FAZENDA,      {}, 1, "+10 comida\npor nível"},
+    {"Serraria",      CARTA_PREDIO,   SERRARIA,     {}, 1, "+8 madeira\npor nível"},
+    {"Mina",          CARTA_PREDIO,   MINA,         {}, 1, "+5 pedra e\n+3 ferro"},
     {"Casa",          CARTA_PREDIO,   CASA,         {}, 1, "+6 pessoas\npor nível"},
-    {"Mercado",       CARTA_PREDIO,   MERCADO,      {}, 2, "+10 ouro\npor nível"},
+    {"Mercado",       CARTA_PREDIO,   MERCADO,      {}, 2, "+13 ouro\npor nível"},
     {"Muralha",       CARTA_PREDIO,   MURALHA,      {}, 1, "castelo\ntoma menos\ndano"},
     {"Torre",         CARTA_PREDIO,   TORRE,        {}, 2, "atira nos\ninimigos\nna batalha"},
     {"Oficina",       CARTA_PREDIO,   OFICINA,      {}, 2, "+1 ataque\nem todas\nas tropas"},
@@ -26,7 +26,7 @@ const ModeloCarta CARTAS[TOTAL_CARTAS] = {
     {"Caravana",      CARTA_INSTANTE, CARAVANA,     {}, 2, "+50 ouro\n+20 madeira\n+10 pedra"},
 };
 
-const int MAX_CARTAS_BARALHO = 64;
+const int MAX_CARTAS_BARALHO = 128;
 
 }
 
@@ -116,6 +116,26 @@ void descartarTudo(Baralho& baralho) {
     for (int i = 0; i < baralho.totalUsadas; i++) colocarCarta(baralho.descarte, baralho.usadas[i]);
     baralho.naMao = 0;
     baralho.totalUsadas = 0;
+}
+
+void sortearRecompensa(int opcoes[3]) {
+    for (int i = 0; i < 3; i++) {
+        bool repetida = true;
+        while (repetida) {
+            int rolagem = sortear(1, 100);
+            int raridade = rolagem <= 10 ? 3 : rolagem <= 40 ? 2 : 1;
+            int carta = sortear(0, TOTAL_CARTAS - 1);
+            if (CARTAS[carta].raridade != raridade) continue;
+            repetida = false;
+            for (int j = 0; j < i; j++) repetida = repetida || opcoes[j] == carta;
+            opcoes[i] = carta;
+        }
+    }
+}
+
+void ganharCarta(Baralho& baralho, int carta) {
+    if (carta < 0 || carta >= TOTAL_CARTAS || totalDeCartas(baralho) >= MAX_CARTAS_BARALHO) return;
+    colocarCarta(baralho.monte, carta);
 }
 
 int totalDeCartas(const Baralho& baralho) {
