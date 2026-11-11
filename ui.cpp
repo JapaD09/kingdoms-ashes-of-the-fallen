@@ -23,7 +23,8 @@ void caixaComSombra(Rectangle r, Color fundo) {
 Rectangle areaNaJanela() {
     float w = static_cast<float>(GetScreenWidth()), h = static_cast<float>(GetScreenHeight());
     float escala = fminf(w / VL, h / VA);
-    if (escala >= 1.0f) escala = floorf(escala);    // inteiro = pixel certinho
+    // perto de um número inteiro, usa o inteiro (pixel certinho); senão enche a tela
+    if (escala - floorf(escala) < 0.05f && escala >= 1.0f) escala = floorf(escala);
     float largura = VL * escala, altura = VA * escala;
     return {(w - largura) / 2, (h - altura) / 2, largura, altura};
 }
