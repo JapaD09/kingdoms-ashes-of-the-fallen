@@ -64,7 +64,7 @@ static void testarConstrucao() {
     Reino reino;
     iniciarReino(reino);
 
-    reino.estoque = {30, 20, 0, 0, 0};   // custo exato da fazenda
+    reino.estoque = modeloEdificio(FAZENDA).custo;   // custo exato da fazenda
     construirEdificio(reino, FAZENDA, 1, 1);
     conferir(reino.edificios.tamanho == 1, "constroi com recursos exatos");
     conferir(reino.estoque.ouro == 0 && reino.estoque.madeira == 0, "cobra uma vez so");
@@ -222,6 +222,31 @@ static int naMao(const Reino& reino, int carta) {
 static int darCarta(Reino& reino, int carta) {
     reino.baralho.mao[0] = carta;
     return 0;
+}
+
+static void testarTrocaDeMao() {
+    cout << "Troca de mao e preco do nivel\n";
+    semearAleatorio(4);
+    Reino reino;
+    iniciarReino(reino);
+    int cartas = totalDeCartas(reino.baralho);
+    reino.estoque.ouro = 10;
+    trocarMao(reino);
+    conferir(reino.estoque.ouro == 10 && reino.trocasDeMao == 0, "sem ouro nao troca a mao");
+    reino.estoque.ouro = 100;
+    trocarMao(reino);
+    conferir(reino.estoque.ouro == 85 && reino.baralho.naMao == 5, "troca custa 15 e vem mao cheia");
+    conferir(totalDeCartas(reino.baralho) == cartas, "nenhuma carta some na troca");
+    conferir(precoDaTroca(reino) == 25, "a segunda troca do turno e mais cara");
+    processarTurnoReino(reino);
+    conferir(precoDaTroca(reino) == 15, "no turno seguinte o preco volta");
+
+    economia().nivelPct = 150;
+    Recursos base = modeloEdificio(QUARTEL).custo;
+    conferir(custoDeSubir(QUARTEL, 1).ouro == base.ouro * 250 / 100, "subir pro nivel 2 custa mais que construir");
+    conferir(custoDeSubir(QUARTEL, 2).ouro > custoDeSubir(QUARTEL, 1).ouro, "nivel 3 custa mais que o 2");
+    economia().nivelPct = 0;
+    liberarReino(reino);
 }
 
 static void testarCartas() {
@@ -469,6 +494,12 @@ int main() {
     deTeste.ondaDivisor = 10;
     deTeste.materiaisPct = 100;
     deTeste.producaoPct = 100;
+    deTeste.forcaBase = 0;
+    deTeste.rendaMadeira = 0;
+    deTeste.saquePct = 100;
+    deTeste.vendaPct = 100;
+    deTeste.ouroPorInimigo = 3;
+    deTeste.nivelPct = 0;
     economia() = deTeste;
     aplicarEconomia();
 
@@ -479,6 +510,7 @@ int main() {
     testarConstrucao();
     testarTurno();
     testarCartas();
+    testarTrocaDeMao();
     silenciosoOk = true;
     testarHerois();
     testarBatalha();

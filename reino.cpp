@@ -8,18 +8,18 @@ namespace {
 
 // nome, custo, produção por nível, defesa, tropa, tropas por nível, moradores
 const ModeloEdificio TABELA[TOTAL_TIPOS_EDIFICIO] = {
-    {"Fazenda",      {30, 20, 0, 0, 0},    {0, 0, 0, 8, 0},  0, SEM_TROPA, 0, 0},
-    {"Serraria",     {35, 15, 0, 0, 0},    {0, 6, 0, 0, 0},  0, SEM_TROPA, 0, 0},
-    {"Quartel",      {40, 25, 10, 0, 0},   {},               0, SOLDADO, 3, 0},
-    {"Muralha",      {40, 0, 25, 0, 0},    {},               2, SEM_TROPA, 0, 0},
-    {"Oficina",      {45, 20, 0, 0, 15},   {},               0, SEM_TROPA, 0, 0},
-    {"Mina",         {35, 20, 0, 0, 0},    {0, 0, 4, 0, 2},  0, SEM_TROPA, 0, 0},
-    {"Mercado",      {60, 25, 10, 0, 0},   {10, 0, 0, 0, 0}, 0, SEM_TROPA, 0, 0},
-    {"Casa",         {25, 25, 0, 0, 0},    {},               0, SEM_TROPA, 0, 6},
-    {"Torre",        {50, 15, 30, 0, 0},   {},               0, SEM_TROPA, 0, 0},
-    {"Arquearia",    {45, 30, 0, 0, 5},    {},               0, ARQUEIRO, 2, 0},
-    {"Estábulo",     {60, 30, 10, 10, 10}, {},               0, CAVALEIRO, 1, 0},
-    {"Torre Arcana", {80, 10, 30, 0, 20},  {},               0, MAGO, 1, 0},
+    {"Fazenda",      {30, 10, 0, 0, 0},    {0, 0, 0, 8, 0},  0, SEM_TROPA, 0, 0},
+    {"Serraria",     {35, 10, 0, 0, 0},    {0, 6, 0, 0, 0},  0, SEM_TROPA, 0, 0},
+    {"Quartel",      {40, 15, 10, 0, 0},   {},               0, SOLDADO, 3, 0},
+    {"Muralha",      {40, 0, 20, 0, 0},    {},               2, SEM_TROPA, 0, 0},
+    {"Oficina",      {45, 15, 0, 0, 8},    {},               0, SEM_TROPA, 0, 0},
+    {"Mina",         {35, 10, 0, 0, 0},    {0, 0, 4, 0, 2},  0, SEM_TROPA, 0, 0},
+    {"Mercado",      {60, 15, 10, 0, 0},   {10, 0, 0, 0, 0}, 0, SEM_TROPA, 0, 0},
+    {"Casa",         {25, 15, 0, 0, 0},    {},               0, SEM_TROPA, 0, 6},
+    {"Torre",        {50, 10, 20, 0, 0},   {},               0, SEM_TROPA, 0, 0},
+    {"Arquearia",    {45, 20, 0, 0, 0},    {},               0, ARQUEIRO, 2, 0},
+    {"Estábulo",     {60, 20, 0, 10, 5},   {},               0, CAVALEIRO, 1, 0},
+    {"Torre Arcana", {80, 10, 20, 0, 12},  {},               0, MAGO, 1, 0},
 };
 
 // cópia da tabela com os preços já ajustados pela economia
@@ -115,6 +115,7 @@ void iniciarReino(Reino& reino) {
     reino.armas = 0;
     reino.armaduras = 0;
     reino.feridos = 0;
+    reino.trocasDeMao = 0;
     reino.explorouNoTurno = false;
     reino.populacao = 20;
     reino.soldados = 6;
@@ -233,15 +234,40 @@ string demolirEdificio(Reino& reino, int linha, int coluna) {
 // cartas
 
 // mesma carta em cima do mesmo prédio = sobe de nível
+Recursos custoDeSubir(int tipo, int nivelAtual) {
+    Recursos custo = MODELOS[tipo].custo;
+    int pct = 100 + economiaAtual.nivelPct * nivelAtual;
+    return {ajustar(custo.ouro, pct), ajustar(custo.madeira, pct), ajustar(custo.pedra, pct),
+            ajustar(custo.comida, pct), ajustar(custo.ferro, pct)};
+}
+
+int precoDaTroca(const Reino& reino) {
+    return 15 + 10 * reino.trocasDeMao;
+}
+
+// A mão ruim não precisa travar o turno: por um preço, vem outra.
+// Depois de trocar não dá mais pra desfazer o que foi feito antes.
+string trocarMao(Reino& reino) {
+    int preco = precoDaTroca(reino);
+    if (reino.estoque.ouro < preco) return "Trocar a mão custa " + to_string(preco) + " de ouro.";
+    reino.estoque.ouro -= preco;
+    reino.trocasDeMao++;
+    limparPilha(reino.historico);
+    descartarMao(reino.baralho);
+    comprarMao(reino.baralho);
+    return "Mão nova por " + to_string(preco) + " de ouro.";
+}
+
 static string subirNivel(Reino& reino, int indice, int carta, const Edificio& atual) {
     const ModeloEdificio& modelo = MODELOS[atual.tipo];
     if (atual.nivel >= NIVEL_MAXIMO) return string(modelo.nome) + " já está no nível máximo.";
-    if (!temRecursos(reino.estoque, modelo.custo)) return faltaRecurso(modelo.nome);
+    Recursos custo = custoDeSubir(atual.tipo, atual.nivel);
+    if (!temRecursos(reino.estoque, custo)) return faltaRecurso(modelo.nome);
 
     guardarNaPilha(reino, MELHOROU, atual, carta);
     Edificio* edificio = acharEdificio(reino.edificios, atual.id);
     edificio->nivel++;
-    somar(reino.estoque, modelo.custo, -1);
+    somar(reino.estoque, custo, -1);
     mudarPopulacao(reino, modelo.moradores);
     usarCarta(reino.baralho, indice);
     return string(modelo.nome) + " subiu pro nível " + to_string(edificio->nivel) + "!";
@@ -376,7 +402,9 @@ string desfazerUltimaAcao(Reino& reino) {
             Edificio* edificio = acharEdificio(reino.edificios, acao.edificio.id);
             mudarPopulacao(reino, -modelo.moradores * (edificio->nivel - acao.edificio.nivel));
             *edificio = acao.edificio;                  // volta como era
-            somar(reino.estoque, custoDaCarta(acao.carta));
+            int tipoCarta = modeloCarta(acao.carta).tipo;
+            bool subiuComCarta = tipoCarta == CARTA_PREDIO || tipoCarta == CARTA_TROPA;
+            somar(reino.estoque, subiuComCarta ? custoDeSubir(acao.edificio.tipo, acao.edificio.nivel) : custoDaCarta(acao.carta));
             texto = "Desfeito: " + string(modeloCarta(acao.carta).nome) + ".";
             break;
         }
@@ -463,10 +491,16 @@ Recursos previsaoDoTurno(const Reino& reino) {
     }
     total.ouro += reino.populacao * economiaAtual.impostoPorDez / 10;     // imposto
     total.comida -= consumoDeComida(reino);
+    // o castelo tem seus lenhadores e pedreiros: sempre entra um pouco de material
+    int renda = economiaAtual.rendaMadeira;
+    total.madeira += renda;
+    total.pedra += renda / 2;
+    total.ferro += renda / 4;
     return total;
 }
 
 string processarTurnoReino(Reino& reino) {
+    reino.trocasDeMao = 0;
     Recursos mudanca = previsaoDoTurno(reino);
     somar(reino.estoque, mudanca);
     limparPilha(reino.historico);     // virou turno: não dá mais pra desfazer

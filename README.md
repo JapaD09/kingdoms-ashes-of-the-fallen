@@ -98,6 +98,7 @@ O mapa abre em **3D** (dá pra voltar pro 2D no botão **Vista 2D** ou na tecla 
 | `R` | volta a câmera pro começo |
 | `F11` | sai da tela cheia (o jogo já abre nela) ou volta |
 | `Z` | desfaz a última jogada do turno |
+| `T` | paga ouro pra trocar a mão |
 | `H` | heróis |
 | `F1` | ajuda |
 | `M` | liga/desliga o som |
@@ -162,18 +163,28 @@ g++ -std=c++17 -Wall -Wextra testes.cpp jogo.cpp reino.cpp cartas.cpp herois.cpp
 
 ## Balanceamento
 
-Os números da economia ficam em `economia.h`. O `simulador.cpp` joga 60 partidas com cada
-tipo de jogador (parado, casual, esperto e um que só defende) e dá uma nota pra cada opção.
-Foram comparadas 486 combinações de imposto, preço, materiais iniciais, produção, força das
-ondas e força dos chefes. A escolhida: prédios 30% mais baratos, +50% de materiais no começo,
-+30% de produção e chefes de expedição mais fortes a cada conquista.
+Os números da economia ficam em `economia.h`. O `simulador.cpp` joga partidas inteiras com
+quatro tipos de jogador (parado, casual, esperto e um que só defende) e dá uma nota pra cada
+opção. A nota olha a taxa de vitória, o turno da vitória, quantas cartas dá pra jogar por turno,
+quanto ouro fica parado e quantas vezes a mão trava por falta de material.
+
+O rastro turno a turno (`simulador rastro 2`) mostrou que a primeira versão estava quebrada:
+o saque das expedições enchia o reino de ouro (mais de 1.500 parados) e os chefes caíam nos
+primeiros turnos, enquanto a madeira travava as cartas. A economia foi reestruturada:
+
+- itens sem uso são vendidos por 20% do preço e o ouro do saque caiu pra um quarto
+- o castelo rende um pouco de madeira, pedra e ferro todo turno, e os prédios pedem menos material
+- subir de nível fica mais caro a cada nível, e dá pra pagar ouro pra trocar a mão (`T`)
+- os inimigos das expedições já começam mais fortes
 
 | | Antes | Agora |
 |---|---|---|
-| Jogador esperto vence | 76% (em 12 turnos) | 65% (em 19 turnos) |
-| Jogador casual vence | 35% | 21% |
-| Quem só defende aguenta até o turno | 18 | 32 |
-| Cartas jogadas por turno | 1,25 | 1,77 |
+| Jogador esperto vence | 94% | 62% |
+| Jogador casual vence | 49% | 10% |
+| Turno médio da vitória | 18 | 23 |
+| Chefes derrotados até o turno 3 | 2,0 | 0,4 |
+| Ouro parado por turno | 1.557 | 68 |
+| Cartas travadas por falta de material | 1,34 | 0,39 |
 
 ## Organização do código
 

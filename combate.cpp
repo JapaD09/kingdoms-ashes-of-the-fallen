@@ -271,7 +271,7 @@ void rodadaDeBatalha(Batalha& b) {
 }
 
 void recompensaDaBatalha(const Batalha& b, int& ouro, int& cristais) {
-    ouro = economia().ouroPorVitoria + 3 * contarDoLado(b, INIMIGO);
+    ouro = economia().ouroPorVitoria + economia().ouroPorInimigo * contarDoLado(b, INIMIGO);
     cristais = 2 + b.turno / 4 + (turnoDeChefe(b.turno) ? 3 : 0);
 }
 

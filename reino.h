@@ -51,6 +51,7 @@ struct Reino {
     int pocoes = 1;                 // usadas no combate da expedição
     int armas = 0;                  // +1 de ataque nos heróis cada (até 3)
     int armaduras = 0;              // +3 de vida nos heróis cada (até 3)
+    int trocasDeMao = 0;            // quantas vezes trocou a mão neste turno (cada vez fica mais caro)
     int feridos = 0;                // turnos que os heróis ficam fora depois de perder uma expedição
     bool explorouNoTurno = false;
 };
@@ -73,6 +74,13 @@ std::string demolirEdificio(Reino& reino, int linha, int coluna);
 
 // carta da mão no lote (prédio, tropa, encanto, expansão ou instante)
 std::string jogarCarta(Reino& reino, int indiceMao, int linha, int coluna);
+
+// preço de subir um prédio de nível (fica mais caro a cada nível)
+Recursos custoDeSubir(int tipo, int nivelAtual);
+
+// paga ouro pra descartar a mão e comprar outra
+int precoDaTroca(const Reino& reino);
+std::string trocarMao(Reino& reino);
 
 // desfaz a última jogada do turno (pilha)
 std::string desfazerUltimaAcao(Reino& reino);

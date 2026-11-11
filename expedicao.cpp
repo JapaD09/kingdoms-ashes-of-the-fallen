@@ -58,6 +58,7 @@ int sortearTipo(int camada) {
 
 InimigoExp criarInimigo(int regiao, int nivel, int dificuldade) {
     const TropaInimiga& t = reinoInimigo(regiao).tropas[nivel];
+    dificuldade += economia().forcaBase;
     InimigoExp i;
     i.nivel = nivel;
     i.vidaMax = i.vida = t.vida * (100 + economia().forcaPorChefe * dificuldade) / 100;
@@ -133,10 +134,18 @@ void avisar(Expedicao& exp, const string& texto) {
     exp.fase = EXP_AVISO;
 }
 
+// ouro do saque já com o ajuste da economia
+int ouroDoSaque(int valor) {
+    return valor * economia().saquePct / 100;
+}
+
 void abrirTesouro(Expedicao& exp) {
-    int ouro = sortear(30, 50) + 5 * exp.dificuldade;
+    int ouro = ouroDoSaque(sortear(30, 50) + 5 * exp.dificuldade);
+    int madeira = sortear(10, 18), pedra = sortear(6, 12);
     exp.saque.ouro += ouro;
-    string texto = "Tesouro: +" + to_string(ouro) + " ouro";
+    exp.saque.madeira += madeira;
+    exp.saque.pedra += pedra;
+    string texto = "Tesouro: +" + to_string(ouro) + " ouro, +" + to_string(madeira) + " madeira, +" + to_string(pedra) + " pedra";
     string item = acharItem(exp, 2);
     if (!item.empty()) texto += ", " + item;
     if (chance(30)) {
@@ -166,17 +175,17 @@ void machucarTodos(Expedicao& exp, int dano) {
 
 void recompensar(Expedicao& exp) {
     int tipo = exp.atual->tipo;
-    int ouro = sortear(12, 22) + 6 * exp.dificuldade + exp.bonusDoCombate;
+    int ouro = ouroDoSaque(sortear(12, 22) + 6 * exp.dificuldade + exp.bonusDoCombate);
     string texto;
     if (tipo == NO_CHEFE) {
-        ouro += 70;
+        ouro += ouroDoSaque(70);
         exp.saque.cristais += 6;
         string item = acharItem(exp, 3, 3);
         texto = string(reinoInimigo(exp.regiao).rei) + " caiu! +" + to_string(ouro + 0) + " ouro, +6 cristais";
         if (!item.empty()) texto += ", " + item;
         exp.desfecho = CHEFE_VENCIDO;
     } else if (tipo == NO_ELITE) {
-        ouro += 20;
+        ouro += ouroDoSaque(20);
         exp.saque.cristais += 2;
         string item = acharItem(exp, 2, 2);
         texto = "Elite derrotado: +" + to_string(ouro) + " ouro, +2 cristais";
@@ -318,8 +327,9 @@ string guardarItem(Reino& reino, const NoArvore* catalogo, int id) {
         reino.estoque.comida += item->valor;
         return item->nome;
     }
-    reino.estoque.ouro += item->valor;              // o resto é vendido
-    return item->nome + " (vendido por " + to_string(item->valor) + ")";
+    int preco = item->valor * economia().vendaPct / 100;    // o resto é vendido (o mercador paga só uma parte)
+    reino.estoque.ouro += preco;
+    return item->nome + " (vendido por " + to_string(preco) + ")";
 }
 
 }

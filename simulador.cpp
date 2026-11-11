@@ -6,6 +6,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include "aleatorio.h"
 #include "economia.h"
 #include "jogo.h"
@@ -13,7 +14,7 @@
 enum Jogador { PARADO, CASUAL, ESPERTO, DEFENSOR };   // defensor = esperto que nunca sai em expedição
 
 const int LIMITE_DE_TURNOS = 60;
-const int PARTIDAS = 60;
+const int PARTIDAS = 40;
 
 struct Resultado {
     int vitorias = 0;
@@ -21,6 +22,12 @@ struct Resultado {
     int cartasJogadas = 0;
     int turnosJogados = 0;
     int chefes = 0;
+    int turnosDasVitorias = 0;  // soma do turno final, só das partidas ganhas
+    double sobraOuro = 0;       // ouro parado depois de jogar (turnos 4 a 20)
+    double naoPagou = 0;        // cartas que ficaram na mão com ouro sobrando mas sem material (turnos 4 a 20)
+    int turnosMedidos = 0;
+    int defesas = 0, defesasVencidas = 0;   // turnos 6 a 20
+    int chefesNoTurno3 = 0;
 };
 
 // ---------- expedição ----------
@@ -167,7 +174,18 @@ int jogarTurno(Jogo& jogo, int jogador) {
     }
     if (jogador == ESPERTO || jogador == DEFENSOR) {
         while (jogadaEsperta(r)) jogadas++;
+        // sobrou ouro e nada pra jogar: troca a mão (até 2 vezes) e tenta de novo
+        while (r.trocasDeMao < 2 && r.estoque.ouro >= precoDaTroca(r) + 50) {
+            trocarMao(r);
+            while (jogadaEsperta(r)) jogadas++;
+        }
         if (r.estoque.ouro > 90) recrutarGuardas(r);
+    }
+    if (jogador == CASUAL && jogadas == 0 && r.estoque.ouro >= precoDaTroca(r) + 40) {
+        trocarMao(r);
+        for (int i = r.baralho.naMao - 1; i >= 0; i--) {
+            if (temRecursos(r.estoque, custoDaCarta(r.baralho.mao[i])) && jogarEmQualquerLote(r, i)) jogadas++;
+        }
     }
     if (jogador != PARADO) {
         int heroi;
@@ -184,14 +202,31 @@ Resultado simular(int jogador) {
         Jogo jogo;
         iniciarJogo(jogo, semente * 31 + jogador);
         while (!jogo.derrota && !jogo.vitoria && jogo.turno < LIMITE_DE_TURNOS) {
+            int turno = jogo.turno;
             res.cartasJogadas += jogarTurno(jogo, jogador);
             res.turnosJogados++;
+            if (turno >= 4 && turno <= 20) {
+                res.turnosMedidos++;
+                res.sobraOuro += jogo.reino.estoque.ouro;
+                for (int i = 0; i < jogo.reino.baralho.naMao; i++) {       // tinha ouro mas faltou material
+                    Recursos c = custoDaCarta(jogo.reino.baralho.mao[i]);
+                    const Recursos& tem = jogo.reino.estoque;
+                    bool faltaMaterial = tem.madeira < c.madeira || tem.pedra < c.pedra || tem.ferro < c.ferro;
+                    if (tem.ouro >= c.ouro && faltaMaterial) res.naoPagou += 1;
+                }
+            }
+            if (turno == 3) res.chefesNoTurno3 += chefesDerrotados(jogo);
             if (jogo.vitoria) break;
             encerrarTurno(jogo);
             concluirBatalha(jogo);
+            if (turno >= 6 && turno <= 20) {
+                res.defesas++;
+                res.defesasVencidas += jogo.batalha.vitoria;
+            }
             if (jogo.escolhendoCarta) escolherRecompensa(jogo, jogador == PARADO ? -1 : 0);
         }
         res.vitorias += jogo.vitoria;
+        if (jogo.vitoria) res.turnosDasVitorias += jogo.turno;
         res.somaTurnos += jogo.turno;
         res.chefes += chefesDerrotados(jogo);
         encerrarJogo(jogo);
@@ -199,76 +234,174 @@ Resultado simular(int jogador) {
     return res;
 }
 
-// Nota de uma economia. O que eu quero:
+// Nota de uma economia. O que eu quero ver numa partida:
 //   - quem joga bem ganha na maioria das vezes, mas não sempre (meta: 65%)
-//   - quem joga de qualquer jeito ganha pouco (meta: 20%)
-//   - a partida de quem ganha dura uns 24 turnos
-//   - só se defendendo dá pra aguentar bastante (meta: turno 30), mas não pra sempre
-//   - dá pra jogar umas 2 cartas por turno
+//   - quem joga de qualquer jeito ganha pouco (meta: 22%)
+//   - a vitória sai lá pelo turno 24, e o primeiro chefe não cai nos 3 primeiros turnos
+//   - dá pra jogar umas 2 cartas por turno e quase nunca a mão trava por falta de material
+//   - o ouro não fica sobrando: se sobra, é porque não tem onde gastar
+//   - a defesa do castelo é vencida quase sempre (meta: 88%), mas não sempre
 double distancia(double valor, double meta) {
     return valor > meta ? valor - meta : meta - valor;
 }
 
+double acima(double valor, double limite) {
+    return valor > limite ? valor - limite : 0;
+}
+
 double nota(const Resultado r[]) {
-    double vEsperto = r[ESPERTO].vitorias * 100.0 / PARTIDAS, vCasual = r[CASUAL].vitorias * 100.0 / PARTIDAS;
-    double cartas = r[ESPERTO].cartasJogadas * 1.0 / r[ESPERTO].turnosJogados;
+    const Resultado& e = r[ESPERTO];
+    double vEsperto = e.vitorias * 100.0 / PARTIDAS, vCasual = r[CASUAL].vitorias * 100.0 / PARTIDAS;
+    double cartas = e.cartasJogadas * 1.0 / e.turnosJogados;
+    double turnoVitoria = e.vitorias > 0 ? e.turnosDasVitorias * 1.0 / e.vitorias : 60;
+    double medidos = e.turnosMedidos > 0 ? e.turnosMedidos : 1;
+    double defesa = e.defesas > 0 ? e.defesasVencidas * 100.0 / e.defesas : 0;
     double n = 100;
     n -= distancia(vEsperto, 65) * 1.0;
-    n -= distancia(vCasual, 20) * 0.8;
-    n -= distancia(r[ESPERTO].somaTurnos * 1.0 / PARTIDAS, 24) * 1.5;
-    n -= distancia(r[DEFENSOR].somaTurnos * 1.0 / PARTIDAS, 30) * 1.0;
-    n -= distancia(cartas, 2.0) * 15;
+    n -= distancia(vCasual, 22) * 0.6;
+    n -= distancia(turnoVitoria, 24) * 1.5;
+    n -= distancia(r[DEFENSOR].somaTurnos * 1.0 / PARTIDAS, 28) * 0.5;
+    n -= acima(2.0, cartas) * 20;
+    n -= acima(e.sobraOuro / medidos, 100) / 10;
+    n -= acima(e.naoPagou / medidos, 0.3) * 20;
+    n -= acima(e.chefesNoTurno3 * 1.0 / PARTIDAS, 0.4) * 30;
+    n -= distancia(defesa, 88) * 0.5;
     return n;
 }
 
 void mostrar(const char* nome, const Economia& e) {
     economia() = e;
+    aplicarEconomia();
     Resultado r[4];
     for (int j = 0; j < 4; j++) r[j] = simular(j);
-    printf("%-6s imp %2d custo %3d mat %3d prod %3d onda %d/%2d chefe %2d | parado T%4.1f | defensor T%4.1f | casual %3d%% T%4.1f | esperto %3d%% T%4.1f ch %.1f cartas %.2f | nota %5.1f\n",
-           nome, e.impostoPorDez, e.custoPct, e.materiaisPct, e.producaoPct, e.ondaPorTurno, e.ondaDivisor, e.forcaPorChefe,
-           r[0].somaTurnos * 1.0 / PARTIDAS, r[3].somaTurnos * 1.0 / PARTIDAS,
-           r[1].vitorias * 100 / PARTIDAS, r[1].somaTurnos * 1.0 / PARTIDAS,
-           r[2].vitorias * 100 / PARTIDAS, r[2].somaTurnos * 1.0 / PARTIDAS, r[2].chefes * 1.0 / PARTIDAS,
-           r[2].cartasJogadas * 1.0 / r[2].turnosJogados, nota(r));
+    const Resultado& x = r[ESPERTO];
+    double medidos = x.turnosMedidos > 0 ? x.turnosMedidos : 1;
+    printf("%-6s custo %3d prod %3d renda %d onda %d/%2d chefe %2d base %d saque %2d porInim %d nivel %3d | defensor T%4.1f | casual %3d%% | esperto %3d%% vitoria T%4.1f chefes %.1f t3 %.2f | cartas %.2f travou %.2f sobra %4.0f defesa %2.0f%% | nota %5.1f\n",
+           nome, e.custoPct, e.producaoPct, e.rendaMadeira, e.ondaPorTurno, e.ondaDivisor, e.forcaPorChefe, e.forcaBase, e.saquePct,
+           e.ouroPorInimigo, e.nivelPct, r[DEFENSOR].somaTurnos * 1.0 / PARTIDAS, r[CASUAL].vitorias * 100 / PARTIDAS,
+           x.vitorias * 100 / PARTIDAS, x.vitorias ? x.turnosDasVitorias * 1.0 / x.vitorias : 0.0, x.chefes * 1.0 / PARTIDAS,
+           x.chefesNoTurno3 * 1.0 / PARTIDAS, x.cartasJogadas * 1.0 / x.turnosJogados, x.naoPagou / medidos, x.sobraOuro / medidos,
+           x.defesas ? x.defesasVencidas * 100.0 / x.defesas : 0.0, nota(r));
+}
+
+// Rastro: média do que acontece em cada turno (pra ver ONDE a economia aperta)
+void rastro(int jogador) {
+    const int N = 200, T = 41;
+    static double soma[T][16];
+    static int vivos[T];
+    for (auto& l : soma) for (double& v : l) v = 0;
+    for (int& v : vivos) v = 0;
+    int faltou[5] = {};
+    for (int semente = 1; semente <= N; semente++) {
+        Jogo jogo;
+        iniciarJogo(jogo, semente * 31 + jogador);
+        while (!jogo.derrota && !jogo.vitoria && jogo.turno < T) {
+            int t = jogo.turno;
+            Reino& r = jogo.reino;
+            Recursos p = previsaoDoTurno(r);
+            vivos[t]++;
+            double* s = soma[t];
+            s[0] += r.estoque.ouro; s[1] += r.estoque.madeira; s[2] += r.estoque.pedra;
+            s[3] += r.estoque.comida; s[4] += r.estoque.ferro; s[5] += p.ouro; s[6] += p.comida;
+            int jogadas = jogarTurno(jogo, jogador);
+            s[7] += jogadas;
+            for (int i = 0; i < r.baralho.naMao; i++) {          // o que sobrou na mão sem dar pra pagar
+                Recursos c = custoDaCarta(r.baralho.mao[i]);
+                if (temRecursos(r.estoque, c)) continue;
+                s[8] += 1;
+                if (r.estoque.ouro < c.ouro) faltou[0]++;
+                if (r.estoque.madeira < c.madeira) faltou[1]++;
+                if (r.estoque.pedra < c.pedra) faltou[2]++;
+                if (r.estoque.comida < c.comida) faltou[3]++;
+                if (r.estoque.ferro < c.ferro) faltou[4]++;
+            }
+            s[9] += r.estoque.ouro;                                // ouro parado depois de jogar
+            if (jogo.vitoria) break;
+            encerrarTurno(jogo);
+            s[10] += vivosDoLado(jogo.batalha, ALIADO);
+            s[11] += vivosDoLado(jogo.batalha, INIMIGO);
+            concluirBatalha(jogo);
+            s[12] += jogo.batalha.vitoria;
+            s[13] += r.vidaCastelo;
+            s[14] += r.populacao;
+            s[15] += chefesDerrotados(jogo);
+            if (jogo.escolhendoCarta) escolherRecompensa(jogo, 0);
+        }
+        encerrarJogo(jogo);
+    }
+    printf("turno vivos | ouro mad pedra comida ferro | +ouro +comida | jogou naoPagou sobraOuro | tropas inimigos vence%% castelo pop chefes\n");
+    for (int t = 1; t < T; t += (t < 12 ? 1 : 3)) {
+        if (vivos[t] == 0) break;
+        double v = vivos[t];
+        double* s = soma[t];
+        printf("%3d %5d | %4.0f %4.0f %4.0f %4.0f %4.0f | %4.0f %4.0f | %4.1f %4.1f %5.0f | %4.1f %4.1f %4.0f %5.0f %4.0f %4.1f\n", t, vivos[t],
+               s[0]/v, s[1]/v, s[2]/v, s[3]/v, s[4]/v, s[5]/v, s[6]/v, s[7]/v, s[8]/v, s[9]/v, s[10]/v, s[11]/v, s[12]*100/v, s[13]/v, s[14]/v, s[15]/v);
+    }
+    printf("faltou pra pagar carta: ouro %d  madeira %d  pedra %d  comida %d  ferro %d\n", faltou[0], faltou[1], faltou[2], faltou[3], faltou[4]);
 }
 
 int main(int argc, char** argv) {
+    if (argc >= 3 && strcmp(argv[1], "rastro") == 0) {
+        // rastro <jogador> [custo mat prod ondaT ondaD chefe base renda saque venda porInimigo]
+        Economia& e = economia();
+        int* campos[] = {&e.custoPct, &e.materiaisPct, &e.producaoPct, &e.ondaPorTurno, &e.ondaDivisor, &e.forcaPorChefe,
+                         &e.forcaBase, &e.rendaMadeira, &e.saquePct, &e.vendaPct, &e.ouroPorInimigo, &e.nivelPct};
+        for (int i = 3; i < argc && i - 3 < 12; i++) *campos[i - 3] = atoi(argv[i]);
+        aplicarEconomia();
+        rastro(atoi(argv[2]));
+        return 0;
+    }
     Economia atual;
     if (argc < 2 || strcmp(argv[1], "varrer") != 0) {
-        Economia antiga;                 // como era antes do ajuste, pra comparar
-        antiga.custoPct = 100;
-        antiga.ondaPorTurno = 3;
-        antiga.ondaDivisor = 10;
-        antiga.forcaPorChefe = 15;
-        antiga.materiaisPct = 100;
-        antiga.producaoPct = 100;
+        Economia antiga;                 // como era antes da reestruturação, pra comparar
+        antiga.custoPct = 70;
+        antiga.forcaPorChefe = 45;
+        antiga.forcaBase = 0;
+        antiga.rendaMadeira = 0;
+        antiga.saquePct = 100;
+        antiga.vendaPct = 100;
+        antiga.ouroPorInimigo = 3;
+        antiga.nivelPct = 0;
         mostrar("antiga", antiga);
         mostrar("atual", atual);
         return 0;
     }
-    // todas as combinações
-    const int impostos[] = {5, 8};
-    const int custos[] = {100, 85, 70};
-    const int ondas[][2] = {{3, 10}, {2, 16}, {2, 12}};
-    const int chefes[] = {30, 45, 55};
-    const int materiais[] = {100, 150, 200};
-    const int producoes[] = {100, 130, 160};
-    for (int imposto : impostos)
-        for (int custo : custos)
-            for (const auto& onda : ondas)
-                for (int chefe : chefes)
-                    for (int material : materiais)
-                        for (int producao : producoes) {
-                            Economia e;
-                            e.impostoPorDez = imposto;
-                            e.custoPct = custo;
-                            e.ondaPorTurno = onda[0];
-                            e.ondaDivisor = onda[1];
-                            e.forcaPorChefe = chefe;
-                            e.materiaisPct = material;
-                            e.producaoPct = producao;
-                            mostrar("", e);
-                        }
+    // todas as combinações (o 2º argumento escolhe o preço, pra rodar 3 processos ao mesmo tempo)
+    const int custos[] = {70, 85, 100};
+    const int producoes[] = {130};
+    const int rendas[] = {4, 6, 8};
+    const int ondas[][2] = {{3, 10}, {3, 14}, {2, 12}};
+    const int chefes[] = {25, 30};
+    const int bases[] = {3, 4};
+    const int saques[] = {25, 40};
+    const int porInimigo[] = {1, 2};
+    const int niveis[] = {100, 150};
+    int so = argc >= 3 ? atoi(argv[2]) : -1;
+    for (int c = 0; c < 3; c++) {
+        if (so >= 0 && so != c) continue;
+        for (int producao : producoes)
+            for (int renda : rendas)
+                for (const auto& onda : ondas)
+                    for (int chefe : chefes)
+                        for (int base : bases)
+                            for (int saque : saques)
+                                for (int inim : porInimigo)
+                                    for (int nivel : niveis) {
+                                        Economia e;
+                                        e.custoPct = custos[c];
+                                        e.producaoPct = producao;
+                                        e.materiaisPct = 150;
+                                        e.rendaMadeira = renda;
+                                        e.ondaPorTurno = onda[0];
+                                        e.ondaDivisor = onda[1];
+                                        e.forcaPorChefe = chefe;
+                                        e.forcaBase = base;
+                                        e.saquePct = saque;
+                                        e.vendaPct = 20;
+                                        e.ouroPorInimigo = inim;
+                                        e.nivelPct = nivel;
+                                        mostrar("", e);
+                                    }
+    }
     return 0;
 }

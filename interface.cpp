@@ -33,7 +33,7 @@ const int MAX_BRASAS = 40;
 enum Tela { TELA_TITULO, TELA_REINO, TELA_BATALHA, TELA_EXPEDICAO, TELA_DERROTA, TELA_VITORIA };
 
 // ações dos botões
-enum AcaoBotao { SAIR, RECRUTAR, RECURSOS, EXPEDICAO, CATALOGO, FIM_DO_TURNO, DESFAZER, TROCAR_VISTA, HEROIS, AJUDA };
+enum AcaoBotao { SAIR, RECRUTAR, RECURSOS, EXPEDICAO, CATALOGO, FIM_DO_TURNO, DESFAZER, TROCAR_VISTA, HEROIS, AJUDA, TROCAR_MAO };
 
 // fagulhas do fundo
 struct Brasa {
@@ -110,13 +110,14 @@ float tempoFumaca = 0;
 bool modo3D = true;          // vista meio 3D (V troca)
 
 const Botao BOTOES[] = {
-    {{4, 20, 70, 16}, "Recrutar", RECRUTAR, iconeSoldado},
-    {{4, 39, 70, 16}, "Heróis", HEROIS, iconeEstrela},
-    {{4, 58, 70, 16}, "Expedição", EXPEDICAO, iconeMapa},
-    {{4, 77, 70, 16}, "Catálogo", CATALOGO, iconeLivro},
-    {{4, 96, 70, 16}, "Recursos", RECURSOS, iconeBau},
-    {{4, 115, 70, 16}, "Desfazer", DESFAZER, iconeDesfazer},
-    {{4, 134, 70, 16}, "Vista 2D", TROCAR_VISTA, iconeVista},
+    {{4, 20, 70, 15}, "Recrutar", RECRUTAR, iconeSoldado},
+    {{4, 37, 70, 15}, "Heróis", HEROIS, iconeEstrela},
+    {{4, 54, 70, 15}, "Expedição", EXPEDICAO, iconeMapa},
+    {{4, 71, 70, 15}, "Catálogo", CATALOGO, iconeLivro},
+    {{4, 88, 70, 15}, "Recursos", RECURSOS, iconeBau},
+    {{4, 105, 70, 15}, "Desfazer", DESFAZER, iconeDesfazer},
+    {{4, 122, 70, 15}, "Trocar mão", TROCAR_MAO, iconeOuro},
+    {{4, 139, 70, 15}, "Vista 2D", TROCAR_VISTA, iconeVista},
     {{246, 150, 70, 27}, "Fim do turno", FIM_DO_TURNO, iconeAmpulheta},
     {{4, 160, 38, 17}, "Sair", SAIR, iconePorta},
     {{44, 160, 30, 17}, "F1", AJUDA, iconeLivro},
@@ -391,7 +392,11 @@ void desenharDestaqueLote(const Reino& reino, bool comPrevia = true) {
     }
     if (ehPredio(tipo) && ocupante != nullptr && ocupante->tipo == modeloCarta(carta).alvo) {
         contornoPulsando(r, DOURADO);
-        tela.dica = ocupante->nivel < NIVEL_MAXIMO ? "Subir de nível" : "Nível máximo";
+        if (ocupante->nivel < NIVEL_MAXIMO) {
+            dicaCom("Subir de nível: " + to_string(custoDeSubir(ocupante->tipo, ocupante->nivel).ouro) + " de ouro");
+        } else {
+            tela.dica = "Nível máximo";
+        }
         return;
     }
     if ((tipo == CARTA_ENCANTO && ocupante != nullptr) || (tipo == CARTA_EXPANSAO && expansaoValida(reino, linha, coluna))) {
@@ -513,6 +518,7 @@ void desenharBarraTopo(const Jogo& jogo) {
 void desenharBotao(const Botao& original) {
     Botao b = original;
     if (b.acao == TROCAR_VISTA) b.texto = modo3D ? "Vista 2D" : "Vista 3D";
+    if (b.acao == TROCAR_MAO && reinoAtual != nullptr) b.texto = TextFormat("Trocar %d", precoDaTroca(*reinoAtual));
     bool sobre = mouseSobre(b.area);
     bool principal = b.acao == FIM_DO_TURNO;
     Color fundo = principal ? TELHADO_VERM : MADEIRA_ESCURA;
@@ -889,7 +895,7 @@ void desenharAjuda() {
         "expedições, sem deixar o castelo cair.\n"
         "Cartas: clique numa carta (ou 1 a 5) e num lote.\n"
         "Carta igual em cima do prédio sobe o nível.\n"
-        "Botão direito demole. Z desfaz a jogada.\n"
+        "Botão direito demole. Z desfaz. T troca a mão.\n"
         "Fim do turno (Espaço): produção e um ataque.\n"
         "Tropas dos prédios voltam sempre. Guardas não.\n"
         "Heróis (H): invoque com cristais, equipe de 3.\n"
@@ -1068,6 +1074,11 @@ void executarAcao(Jogo& jogo, int acao) {
             break;
         case DESFAZER:
             avisar(desfazerUltimaAcao(jogo.reino));
+            break;
+        case TROCAR_MAO:
+            avisar(trocarMao(jogo.reino));
+            tela.cartaSelecionada = -1;
+            anim.tempoMao = 0;                  // as cartas novas entram deslizando
             break;
         case CATALOGO:
             abrirCatalogo(jogo);
@@ -1274,6 +1285,7 @@ void atualizarTelaReino(Jogo& jogo) {
     tratarTeclasCartas(jogo.reino);
     if (IsKeyPressed(KEY_SPACE)) executarAcao(jogo, FIM_DO_TURNO);
     if (IsKeyPressed(KEY_Z)) executarAcao(jogo, DESFAZER);
+    if (IsKeyPressed(KEY_T)) executarAcao(jogo, TROCAR_MAO);
     if (IsKeyPressed(KEY_V)) executarAcao(jogo, TROCAR_VISTA);
     if (IsKeyPressed(KEY_H)) executarAcao(jogo, HEROIS);
     if (modo3D) atualizarCamera3D(GetFrameTime());

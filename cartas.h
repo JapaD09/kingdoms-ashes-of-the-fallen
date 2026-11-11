@@ -52,6 +52,9 @@ int usarCarta(Baralho& baralho, int indice);
 // desfazer: a carta usada volta pra mão
 bool devolverCarta(Baralho& baralho, int carta);
 
+// troca de mão: só a mão vai pro descarte (as usadas ficam, pro desfazer)
+void descartarMao(Baralho& baralho);
+
 // fim do turno: mão e usadas vão pro descarte
 void descartarTudo(Baralho& baralho);
 

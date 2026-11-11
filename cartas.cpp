@@ -18,11 +18,11 @@ const ModeloCarta CARTAS[TOTAL_CARTAS] = {
     {"Arquearia",     CARTA_TROPA,    ARQUEARIA,    {}, 1, "2 arqueiros\npor nível"},
     {"Estábulo",      CARTA_TROPA,    ESTABULO,     {}, 2, "1 cavaleiro\npor nível"},
     {"Torre Arcana",  CARTA_TROPA,    TORRE_ARCANA, {}, 3, "1 mago por\nnível, acerta\n2 de uma vez"},
-    {"Lâminas",       CARTA_ENCANTO,  LAMINAS,      {20, 0, 0, 0, 8}, 1, "+2 ataque\nnas tropas\ndo prédio"},
-    {"Armaduras",     CARTA_ENCANTO,  ARMADURAS,    {20, 0, 0, 0, 8}, 1, "+5 vida\nnas tropas\ndo prédio"},
+    {"Lâminas",       CARTA_ENCANTO,  LAMINAS,      {20, 0, 0, 0, 4}, 1, "+2 ataque\nnas tropas\ndo prédio"},
+    {"Armaduras",     CARTA_ENCANTO,  ARMADURAS,    {20, 0, 0, 0, 4}, 1, "+5 vida\nnas tropas\ndo prédio"},
     {"Estandarte",    CARTA_ENCANTO,  ESTANDARTE,   {35, 10, 0, 0, 0}, 2, "+1 tropa\nno prédio"},
     {"Bênção Real",   CARTA_ENCANTO,  BENCAO,       {40, 0, 0, 0, 0}, 3, "+1 nível em\nqualquer\nprédio"},
-    {"Expansão",      CARTA_EXPANSAO, 0,            {15, 20, 10, 0, 0}, 1, "abre um\nlote da\nfloresta"},
+    {"Expansão",      CARTA_EXPANSAO, 0,            {15, 15, 5, 0, 0}, 1, "abre um\nlote da\nfloresta"},
     {"Caravana",      CARTA_INSTANTE, CARAVANA,     {}, 2, "+50 ouro\n+20 madeira\n+10 pedra"},
 };
 
@@ -109,6 +109,11 @@ bool devolverCarta(Baralho& baralho, int carta) {
         return true;
     }
     return false;
+}
+
+void descartarMao(Baralho& baralho) {
+    for (int i = 0; i < baralho.naMao; i++) colocarCarta(baralho.descarte, baralho.mao[i]);
+    baralho.naMao = 0;
 }
 
 void descartarTudo(Baralho& baralho) {
