@@ -362,6 +362,7 @@ int main(int argc, char** argv) {
         antiga.vendaPct = 100;
         antiga.ouroPorInimigo = 3;
         antiga.nivelPct = 0;
+        for (int& v : antiga.chefeVidaPct) v = 100;
         mostrar("antiga", antiga);
         mostrar("atual", atual);
         return 0;

@@ -86,7 +86,7 @@ void comecarCombate(Expedicao& exp, int tipoNo) {
         por(2);
         InimigoExp& chefe = exp.inimigos[0];
         chefe.chefe = true;
-        chefe.vidaMax = chefe.vida = chefe.vida * 2;
+        chefe.vidaMax = chefe.vida = chefe.vida * 2 * economia().chefeVidaPct[exp.regiao] / 100;
         chefe.ataque += 1;
         por(0);
         if (exp.dificuldade >= 3) por(1);

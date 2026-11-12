@@ -18,10 +18,14 @@ struct Economia {
     int forcaPorChefe = 25;     // % de vida a mais nos inimigos da expedição a cada chefe derrotado
     int forcaBase = 4;          // "chefes de vantagem" que os inimigos da expedição já têm no começo
     int rendaMadeira = 8;       // madeira que o castelo rende por turno (pedra = metade, ferro = um quarto)
-    int saquePct = 25;         // ouro achado na expedição, em %
-    int vendaPct = 20;         // por quanto os itens sem uso são vendidos, em % do preço do catálogo
-    int ouroPorInimigo = 1;
-    int nivelPct = 150;           // quanto subir de nível encarece: +N% do preço a cada nível que o prédio já tem     // ouro por inimigo ao vencer a defesa
+    int saquePct = 25;          // ouro achado na expedição, em %
+    int vendaPct = 20;          // por quanto os itens sem uso são vendidos, em % do preço do catálogo
+    int ouroPorInimigo = 1;     // ouro por inimigo ao vencer a defesa
+    int nivelPct = 150;         // quanto subir de nível encarece: +N% do preço a cada nível que o prédio já tem
+    // vida do chefe de cada região, em %. Os chefes dos 6 reinos têm atributos bem
+    // diferentes (o Draco das Cinzas é muito mais forte que o Troll), então cada um
+    // é calibrado no simulador pra dificuldade subir aos poucos, na ordem das regiões.
+    int chefeVidaPct[6] = {29, 50, 110, 127, 181, 95};
 };
 
 Economia& economia();

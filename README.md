@@ -186,6 +186,28 @@ primeiros turnos, enquanto a madeira travava as cartas. A economia foi reestrutu
 | Ouro parado por turno | 1.557 | 68 |
 | Cartas travadas por falta de material | 1,34 | 0,39 |
 
+### Dá pra terminar?
+
+Pra conferir, 500 partidas novas de cada tipo de jogador (sementes diferentes das usadas no ajuste).
+Os chefes dos 6 reinos têm atributos muito diferentes: antes, o 3º, 4º e 5º caíam quase sempre
+e o último (Draco das Cinzas) segurava todo mundo. A vida de cada chefe agora é calibrada no
+simulador (`chefeVidaPct` em `economia.h`) pra dificuldade subir aos poucos:
+
+| Chefe | 1º | 2º | 3º | 4º | 5º | 6º |
+|---|---|---|---|---|---|---|
+| Antes: esperto vence quando enfrenta | 43% | 56% | 89% | 87% | 95% | 52% |
+| Agora | 82% | 78% | 67% | 67% | 65% | 53% |
+
+| Jogador | Vence | Vitória (metade das partidas até) | Quando perde, o castelo cai até |
+|---|---|---|---|
+| Esperto | 66% | turno 21 | turno 18 |
+| Casual | 11% | turno 22 | turno 12 |
+| Só defende | 0% (não faz expedição) | — | turno 19 |
+| Parado | 0% | — | turno 7 |
+
+Nenhuma partida trava: todas terminam em vitória ou derrota, menos 1 do esperto e 14 do casual,
+que chegaram ao turno 60 com o castelo de pé mas sem derrotar todos os chefes.
+
 ## Organização do código
 
 | Arquivo | O que tem |
