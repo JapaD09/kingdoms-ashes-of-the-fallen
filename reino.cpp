@@ -375,6 +375,44 @@ static string impedeDesfazer(const Reino& reino, const Acao& acao) {
     return "";
 }
 
+// Volta o prédio pro nível que tinha antes da melhoria (ou do encanto) e devolve o custo.
+static string desfazerMelhoria(Reino& reino, const Acao& acao) {
+    const ModeloEdificio& modelo = MODELOS[acao.edificio.tipo];
+    Edificio* edificio = acharEdificio(reino.edificios, acao.edificio.id);
+    mudarPopulacao(reino, -modelo.moradores * (edificio->nivel - acao.edificio.nivel));
+    *edificio = acao.edificio;                          // volta como era
+    int tipoCarta = modeloCarta(acao.carta).tipo;
+    bool subiuComCarta = tipoCarta == CARTA_PREDIO || tipoCarta == CARTA_TROPA;
+    somar(reino.estoque, subiuComCarta ? custoDeSubir(acao.edificio.tipo, acao.edificio.nivel) : custoDaCarta(acao.carta));
+    return "Desfeito: " + string(modeloCarta(acao.carta).nome) + ".";
+}
+
+// Faz o caminho contrário de uma ação que saiu do topo da pilha.
+static string reverterAcao(Reino& reino, const Acao& acao) {
+    const ModeloEdificio& modelo = MODELOS[acao.edificio.tipo];
+    switch (acao.tipo) {
+        case CONSTRUIU:
+            removerEdificio(reino.edificios, acao.edificio.id);
+            somar(reino.estoque, modelo.custo);         // devolve tudo
+            mudarPopulacao(reino, -modelo.moradores);
+            return "Desfeito: " + string(modelo.nome) + ".";
+        case DEMOLIU:
+            inserirEdificio(reino.edificios, acao.edificio);
+            reino.estoque.ouro -= acao.ouroDevolvido;
+            mudarPopulacao(reino, modelo.moradores * acao.edificio.nivel);
+            return "Desfeito: " + string(modelo.nome) + " voltou.";
+        case MELHOROU:
+            return desfazerMelhoria(reino, acao);
+        case EXPANDIU:
+            reino.liberado[acao.edificio.linha][acao.edificio.coluna] = false;
+            somar(reino.estoque, custoDaCarta(acao.carta));
+            return "Desfeito: a floresta voltou.";
+        default:
+            somar(reino.estoque, GANHO_CARAVANA, -1);
+            return "Desfeito: a caravana foi embora.";
+    }
+}
+
 string desfazerUltimaAcao(Reino& reino) {
     const Acao* topo = topoDaPilha(reino.historico);
     if (topo == nullptr) return "Nada pra desfazer neste turno.";
@@ -383,41 +421,7 @@ string desfazerUltimaAcao(Reino& reino) {
 
     Acao acao;
     desempilhar(reino.historico, acao);
-    const ModeloEdificio& modelo = MODELOS[acao.edificio.tipo];
-    string texto;
-    switch (acao.tipo) {
-        case CONSTRUIU:
-            removerEdificio(reino.edificios, acao.edificio.id);
-            somar(reino.estoque, modelo.custo);         // devolve tudo
-            mudarPopulacao(reino, -modelo.moradores);
-            texto = "Desfeito: " + string(modelo.nome) + ".";
-            break;
-        case DEMOLIU:
-            inserirEdificio(reino.edificios, acao.edificio);
-            reino.estoque.ouro -= acao.ouroDevolvido;
-            mudarPopulacao(reino, modelo.moradores * acao.edificio.nivel);
-            texto = "Desfeito: " + string(modelo.nome) + " voltou.";
-            break;
-        case MELHOROU: {
-            Edificio* edificio = acharEdificio(reino.edificios, acao.edificio.id);
-            mudarPopulacao(reino, -modelo.moradores * (edificio->nivel - acao.edificio.nivel));
-            *edificio = acao.edificio;                  // volta como era
-            int tipoCarta = modeloCarta(acao.carta).tipo;
-            bool subiuComCarta = tipoCarta == CARTA_PREDIO || tipoCarta == CARTA_TROPA;
-            somar(reino.estoque, subiuComCarta ? custoDeSubir(acao.edificio.tipo, acao.edificio.nivel) : custoDaCarta(acao.carta));
-            texto = "Desfeito: " + string(modeloCarta(acao.carta).nome) + ".";
-            break;
-        }
-        case EXPANDIU:
-            reino.liberado[acao.edificio.linha][acao.edificio.coluna] = false;
-            somar(reino.estoque, custoDaCarta(acao.carta));
-            texto = "Desfeito: a floresta voltou.";
-            break;
-        default:
-            somar(reino.estoque, GANHO_CARAVANA, -1);
-            texto = "Desfeito: a caravana foi embora.";
-            break;
-    }
+    string texto = reverterAcao(reino, acao);
     if (acao.carta >= 0) devolverCarta(reino.baralho, acao.carta);
     return texto;
 }

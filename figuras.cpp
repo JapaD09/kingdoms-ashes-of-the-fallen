@@ -41,117 +41,89 @@ Aparencia base(Color pele, Color roupa, Color escura, Color detalhe, int arma, i
     return a;
 }
 
+// Armas de lâmina comprida: espada e lança, com fio claro e detalhe no cabo.
+static void armaDeLamina(const Pincel& p, int arma, int topo) {
+    if (arma == ESPADA) {
+        p.px(4, topo + 1, 1, 4, PEDRA_CLARA);
+        p.px(4.25f, topo + 0.5f, 0.5f, 0.5f, PEDRA_CLARA);    // ponta
+        p.px(4, topo + 1, 0.5f, 4, TEXTO_CLARO);              // fio
+        p.px(3, topo + 5, 3, 1, DOURADO_ESCURO);
+        p.px(3, topo + 5, 3, 0.5f, DOURADO);
+        p.px(4, topo + 6, 1, 1, MADEIRA_ESCURA);
+    } else {
+        p.px(4, topo - 2, 1, 2 - topo, MADEIRA);
+        p.px(4, topo - 4, 1, 2, PEDRA_CLARA);
+        p.px(4.25f, topo - 4.5f, 0.5f, 0.5f, PEDRA_CLARA);
+        p.px(4, topo - 4, 0.5f, 2, TEXTO_CLARO);
+        p.px(3.5f, topo - 2, 2, 0.5f, TELHADO_VERM);          // fitinha
+    }
+}
+
 void desenharArma(const Pincel& p, const Aparencia& a, int topo) {
     switch (a.arma) {
         case ESPADA:
-            p.px(4, topo + 1, 1, 4, PEDRA_CLARA);
-            p.px(4.25f, topo + 0.5f, 0.5f, 0.5f, PEDRA_CLARA);    // ponta
-            p.px(4, topo + 1, 0.5f, 4, TEXTO_CLARO);              // fio
-            p.px(3, topo + 5, 3, 1, DOURADO_ESCURO);
-            p.px(3, topo + 5, 3, 0.5f, DOURADO);
-            p.px(4, topo + 6, 1, 1, MADEIRA_ESCURA);
-            break;
-        case LANCA:
-            p.px(4, topo - 2, 1, 2 - topo, MADEIRA);
-            p.px(4, topo - 4, 1, 2, PEDRA_CLARA);
-            p.px(4.25f, topo - 4.5f, 0.5f, 0.5f, PEDRA_CLARA);
-            p.px(4, topo - 4, 0.5f, 2, TEXTO_CLARO);
-            p.px(3.5f, topo - 2, 2, 0.5f, TELHADO_VERM);          // fitinha
-            break;
-        case ARCO:
-            p.px(4, topo, 1, 1, MADEIRA);
-            p.px(5, topo + 1, 1, 6, MADEIRA);
-            p.px(4, topo + 7, 1, 1, MADEIRA);
-            p.px(4, topo + 1, 1, 6, Fade(PERGAMINHO, 0.7f));
-            break;
-        case CAJADO:
-            p.px(4, topo - 1, 1, -topo, MADEIRA_ESCURA);
-            p.px(3, topo - 3, 3, 3, Fade(a.brilhoArma, 0.35f));
-            p.px(4, topo - 2, 1, 1, a.brilhoArma);
-            p.px(4, topo - 2, 0.5f, 0.5f, WHITE);
-            break;
-        case MACHADO:
-            p.px(4, topo + 1, 1, 7, MADEIRA);
-            p.px(5, topo + 1, 2, 3, PEDRA_CLARA);
-            p.px(6.5f, topo + 1, 0.5f, 3, TEXTO_CLARO);
-            break;
-        case MARTELO:
-            p.px(4, topo + 2, 1, 6, MADEIRA);
-            p.px(3, topo, 3, 2, PEDRA);
-            break;
-        case CLAVA:
-            p.px(4, topo + 3, 1, 5, MADEIRA);
-            p.px(4, topo, 2, 3, MADEIRA_ESCURA);
-            break;
-        case ADAGA:
-            p.px(4, topo + 4, 1, 2, PEDRA_CLARA);
-            break;
-        default:
-            break;
+        case LANCA:   armaDeLamina(p, a.arma, topo); break;
+        case ARCO:    p.px(4, topo, 1, 1, MADEIRA); p.px(5, topo + 1, 1, 6, MADEIRA);
+                      p.px(4, topo + 7, 1, 1, MADEIRA); p.px(4, topo + 1, 1, 6, Fade(PERGAMINHO, 0.7f)); break;
+        case CAJADO:  p.px(4, topo - 1, 1, -topo, MADEIRA_ESCURA);
+                      p.px(3, topo - 3, 3, 3, Fade(a.brilhoArma, 0.35f));
+                      p.px(4, topo - 2, 1, 1, a.brilhoArma); p.px(4, topo - 2, 0.5f, 0.5f, WHITE); break;
+        case MACHADO: p.px(4, topo + 1, 1, 7, MADEIRA); p.px(5, topo + 1, 2, 3, PEDRA_CLARA);
+                      p.px(6.5f, topo + 1, 0.5f, 3, TEXTO_CLARO); break;
+        case MARTELO: p.px(4, topo + 2, 1, 6, MADEIRA); p.px(3, topo, 3, 2, PEDRA); break;
+        case CLAVA:   p.px(4, topo + 3, 1, 5, MADEIRA); p.px(4, topo, 2, 3, MADEIRA_ESCURA); break;
+        case ADAGA:   p.px(4, topo + 4, 1, 2, PEDRA_CLARA); break;
+        default: break;
     }
 }
 
 // cabeça: linhas topo..topo+2, chapéu em cima
+// Chapéus que só precisam de 2 ou 3 retângulos.
+static void chapeuSimples(const Pincel& p, const Aparencia& a, int topo) {
+    switch (a.chapeu) {
+        case CABELO:    p.px(-1, topo - 1, 3, 1, a.detalhe); p.px(-1, topo, 1, 2, a.detalhe); break;
+        case ELMO:      p.px(-2, topo - 1, 5, 2, a.detalhe); p.px(-2, topo + 1, 1, 2, a.detalhe); break;
+        case CAPUZ:     p.px(-1, topo - 1, 3, 1, a.roupa);   p.px(-2, topo, 2, 3, a.roupa); break;
+        case TURBANTE:  p.px(-2, topo - 2, 4, 2, a.detalhe); p.px(1, topo - 1, 1, 1, TELHADO_VERM); break;
+        case CAPACETE_BRONZE: p.px(-2, topo - 1, 5, 2, a.detalhe); p.px(-1, topo - 2, 3, 1, TELHADO_VERM); break;
+        case CHIFRES:   p.px(-2, topo - 1, 5, 2, a.detalhe);
+                        p.px(-3, topo - 2, 1, 2, PERGAMINHO); p.px(3, topo - 2, 1, 2, PERGAMINHO); break;
+        case ELMO_ASAS: p.px(-2, topo - 1, 5, 2, a.detalhe);
+                        p.px(-3, topo - 2, 1, 2, TEXTO_CLARO); p.px(3, topo - 2, 1, 2, TEXTO_CLARO); break;
+        default: break;
+    }
+}
+
+// Chapéus com mais detalhe: chapéu de mago, coroa e galhada.
+static void chapeuEnfeitado(const Pincel& p, const Aparencia& a, int topo) {
+    if (a.chapeu == PONTUDO) {
+        p.px(-2, topo - 1, 5, 1, a.roupa);
+        p.px(-1, topo - 2, 3, 1, a.roupa);
+        p.px(-1, topo - 3, 2, 1, a.roupa);
+        p.px(-2, topo - 4, 2, 1, a.roupa);
+    } else if (a.chapeu == COROA) {
+        p.px(-1, topo, 1, 3, a.detalhe);
+        p.px(-1, topo - 1, 3, 1, DOURADO);
+        p.px(-1, topo - 2, 1, 1, DOURADO);
+        p.px(1, topo - 2, 1, 1, DOURADO);
+        p.px(0, topo - 1, 1, 1, TELHADO_VERM);
+    } else if (a.chapeu == GALHADA) {
+        p.px(-1, topo - 1, 3, 1, a.roupaEscura);
+        p.px(-2, topo - 3, 1, 3, MADEIRA);
+        p.px(2, topo - 3, 1, 3, MADEIRA);
+        p.px(-3, topo - 3, 1, 1, MADEIRA);
+        p.px(3, topo - 3, 1, 1, MADEIRA);
+    }
+}
+
 void desenharCabeca(const Pincel& p, const Aparencia& a, int topo) {
     p.px(-1, topo, 3, 3, a.pele);
     p.px(-1, topo + 2.5f, 3, 0.5f, SOMBRA_FINA);       // queixo
     p.px(0.5f, topo + 1, 1.5f, 1, Color{250, 246, 236, 255});   // olho
     p.px(1.5f, topo + 1, 0.5f, 1, CONTORNO);
     p.px(1, topo + 0.5f, 1, 0.5f, SOMBRA_FINA);        // sobrancelha
-    switch (a.chapeu) {
-        case CABELO:
-            p.px(-1, topo - 1, 3, 1, a.detalhe);
-            p.px(-1, topo, 1, 2, a.detalhe);
-            break;
-        case ELMO:
-            p.px(-2, topo - 1, 5, 2, a.detalhe);
-            p.px(-2, topo + 1, 1, 2, a.detalhe);
-            break;
-        case CAPUZ:
-            p.px(-1, topo - 1, 3, 1, a.roupa);
-            p.px(-2, topo, 2, 3, a.roupa);
-            break;
-        case PONTUDO:
-            p.px(-2, topo - 1, 5, 1, a.roupa);
-            p.px(-1, topo - 2, 3, 1, a.roupa);
-            p.px(-1, topo - 3, 2, 1, a.roupa);
-            p.px(-2, topo - 4, 2, 1, a.roupa);
-            break;
-        case CHIFRES:
-            p.px(-2, topo - 1, 5, 2, a.detalhe);
-            p.px(-3, topo - 2, 1, 2, PERGAMINHO);
-            p.px(3, topo - 2, 1, 2, PERGAMINHO);
-            break;
-        case COROA:
-            p.px(-1, topo, 1, 3, a.detalhe);
-            p.px(-1, topo - 1, 3, 1, DOURADO);
-            p.px(-1, topo - 2, 1, 1, DOURADO);
-            p.px(1, topo - 2, 1, 1, DOURADO);
-            p.px(0, topo - 1, 1, 1, TELHADO_VERM);
-            break;
-        case ELMO_ASAS:
-            p.px(-2, topo - 1, 5, 2, a.detalhe);
-            p.px(-3, topo - 2, 1, 2, TEXTO_CLARO);
-            p.px(3, topo - 2, 1, 2, TEXTO_CLARO);
-            break;
-        case TURBANTE:
-            p.px(-2, topo - 2, 4, 2, a.detalhe);
-            p.px(1, topo - 1, 1, 1, TELHADO_VERM);
-            break;
-        case GALHADA:
-            p.px(-1, topo - 1, 3, 1, a.roupaEscura);
-            p.px(-2, topo - 3, 1, 3, MADEIRA);
-            p.px(2, topo - 3, 1, 3, MADEIRA);
-            p.px(-3, topo - 3, 1, 1, MADEIRA);
-            p.px(3, topo - 3, 1, 1, MADEIRA);
-            break;
-        case CAPACETE_BRONZE:
-            p.px(-2, topo - 1, 5, 2, a.detalhe);
-            p.px(-1, topo - 2, 3, 1, TELHADO_VERM);
-            break;
-        default:
-            break;
-    }
+    chapeuSimples(p, a, topo);
+    chapeuEnfeitado(p, a, topo);
 }
 
 void desenharCavalo(const Pincel& p, int passo) {
@@ -206,6 +178,25 @@ void desenharDragao(const Pincel& p, const Aparencia& a, int passo) {
 
 }
 
+// Túnica, cinto, braços e o escudo nas costas, se tiver.
+static void desenharTronco(const Pincel& p, const Aparencia& a, int ombro, int cintura, int corpo) {
+    p.px(-2, ombro, 5, corpo, a.roupa);
+    p.px(-2, cintura, 5, 1, a.roupaEscura);              // cinto
+    p.px(-3, ombro + 1, 1, 2, a.roupaEscura);            // braço de trás
+    p.px(3, ombro + 1, 1, 2, a.roupa);                   // braço da frente
+    p.px(3, ombro + 3, 1, 1, a.pele);
+    p.px(-2, ombro, 5, 0.5f, LUZ_FINA);                  // luz no ombro
+    p.px(-2, ombro, 1, corpo, SOMBRA_FINA);              // sombra nas costas
+    p.px(0.25f, cintura + 0.25f, 0.5f, 0.5f, DOURADO);   // fivela
+    p.px(0, ombro + 1, 0.5f, corpo - 2, SOMBRA_FINA);    // costura da túnica
+    if (a.escudo) {
+        p.px(-4, ombro, 2, 4, a.detalhe);
+        p.px(-4, ombro + 1, 1, 2, a.roupa);
+        p.px(-4, ombro, 2, 0.5f, LUZ_FINA);
+        p.px(-3.25f, ombro + 1.75f, 0.5f, 0.5f, DOURADO);
+    }
+}
+
 static void figuraSemContorno(float x, float y, const Aparencia& a, bool olhaEsquerda, int passo, float brilho) {
     Pincel p = {x, y, a.tamanho, olhaEsquerda, brilho};
     if (a.especial == DRAGAO) {
@@ -229,21 +220,7 @@ static void figuraSemContorno(float x, float y, const Aparencia& a, bool olhaEsq
     } else {
         p.px(-1, cintura + 1, 2, 2, a.roupaEscura);      // perna montada
     }
-    p.px(-2, ombro, 5, corpo, a.roupa);
-    p.px(-2, cintura, 5, 1, a.roupaEscura);              // cinto
-    p.px(-3, ombro + 1, 1, 2, a.roupaEscura);            // braço de trás
-    p.px(3, ombro + 1, 1, 2, a.roupa);                   // braço da frente
-    p.px(3, ombro + 3, 1, 1, a.pele);
-    p.px(-2, ombro, 5, 0.5f, LUZ_FINA);                  // luz no ombro
-    p.px(-2, ombro, 1, corpo, SOMBRA_FINA);              // sombra nas costas
-    p.px(0.25f, cintura + 0.25f, 0.5f, 0.5f, DOURADO);   // fivela
-    p.px(0, ombro + 1, 0.5f, corpo - 2, SOMBRA_FINA);    // costura da túnica
-    if (a.escudo) {
-        p.px(-4, ombro, 2, 4, a.detalhe);
-        p.px(-4, ombro + 1, 1, 2, a.roupa);
-        p.px(-4, ombro, 2, 0.5f, LUZ_FINA);
-        p.px(-3.25f, ombro + 1.75f, 0.5f, 0.5f, DOURADO);
-    }
+    desenharTronco(p, a, ombro, cintura, corpo);
     desenharCabeca(p, a, cabeca);
     desenharArma(p, a, cabeca + 1);
 }
@@ -301,39 +278,19 @@ Aparencia aparenciaTropa(int tropa) {
 Aparencia aparenciaHeroi(int heroi) {
     Aparencia a;
     switch (heroi) {
-        case 0:   // Bran
-            a = base(PELE, PEDRA_CLARA, PEDRA, PEDRA, ESPADA, ELMO);
-            a.escudo = true;
-            break;
-        case 1:   // Lia
-            a = base(PELE, {78, 136, 74, 255}, FOLHA, {204, 120, 52, 255}, ARCO, CABELO);
-            break;
-        case 2:   // Tomas
-            a = base({214, 160, 116, 255}, MADEIRA, MADEIRA_ESCURA, {64, 42, 30, 255}, MARTELO, CABELO);
-            break;
-        case 3:   // Mira
-            a = base(PELE, {236, 234, 224, 255}, {190, 190, 204, 255}, DOURADO, CAJADO, CABELO);
-            a.brilhoArma = {120, 255, 150, 255};
-            break;
-        case 4:   // Kael
-            a = base(PELE, {58, 112, 150, 255}, {36, 70, 100, 255}, PEDRA_CLARA, LANCA, ELMO);
-            break;
-        case 5:   // Sigrid
-            a = base(PELE, PEDRA_CLARA, PEDRA, PEDRA, ESPADA, ELMO_ASAS);
-            a.escudo = true;
-            break;
-        case 6:   // Oren
-            a = base(PELE, {52, 72, 164, 255}, {30, 44, 110, 255}, DOURADO, CAJADO, PONTUDO);
-            a.brilhoArma = BRASA;
-            break;
-        case 7:   // Draven
-            a = base(PELE, {54, 50, 62, 255}, {32, 30, 38, 255}, {54, 50, 62, 255}, ESPADA, CHIFRES);
-            a.especial = MONTADO;
-            break;
-        default:  // Aurora
-            a = base(PELE, {170, 44, 44, 255}, VERMELHO_ESC, {240, 240, 244, 255}, CAJADO, COROA);
-            a.brilhoArma = BRASA;
-            break;
+        case 0: a = base(PELE, PEDRA_CLARA, PEDRA, PEDRA, ESPADA, ELMO); a.escudo = true; break;                        // Bran
+        case 1: a = base(PELE, {78, 136, 74, 255}, FOLHA, {204, 120, 52, 255}, ARCO, CABELO); break;                  // Lia
+        case 2: a = base({214, 160, 116, 255}, MADEIRA, MADEIRA_ESCURA, {64, 42, 30, 255}, MARTELO, CABELO); break;   // Tomas
+        case 3: a = base(PELE, {236, 234, 224, 255}, {190, 190, 204, 255}, DOURADO, CAJADO, CABELO);                 // Mira
+                a.brilhoArma = {120, 255, 150, 255}; break;
+        case 4: a = base(PELE, {58, 112, 150, 255}, {36, 70, 100, 255}, PEDRA_CLARA, LANCA, ELMO); break;             // Kael
+        case 5: a = base(PELE, PEDRA_CLARA, PEDRA, PEDRA, ESPADA, ELMO_ASAS); a.escudo = true; break;                   // Sigrid
+        case 6: a = base(PELE, {52, 72, 164, 255}, {30, 44, 110, 255}, DOURADO, CAJADO, PONTUDO);                     // Oren
+                a.brilhoArma = BRASA; break;
+        case 7: a = base(PELE, {54, 50, 62, 255}, {32, 30, 38, 255}, {54, 50, 62, 255}, ESPADA, CHIFRES);             // Draven
+                a.especial = MONTADO; break;
+        default: a = base(PELE, {170, 44, 44, 255}, VERMELHO_ESC, {240, 240, 244, 255}, CAJADO, COROA);               // Aurora
+                 a.brilhoArma = BRASA; break;
     }
     a.capa = true;
     const Color capas[TOTAL_HEROIS] = {TELHADO_VERM, FOLHA, MADEIRA_ESCURA, {200, 200, 214, 255},
@@ -342,10 +299,13 @@ Aparencia aparenciaHeroi(int heroi) {
     return a;
 }
 
+// tons de pele de cada reino inimigo
+static const Color PELE_GOBLIN = {122, 172, 72, 255}, PELE_ORC = {94, 132, 62, 255}, PELE_AREIA = {200, 150, 104, 255};
+static const Color PELE_ELFO = {240, 222, 204, 255}, PELE_CINZA = {204, 162, 142, 255};
+
 Aparencia aparenciaInimigo(int reino, int nivel) {
     Aparencia a;
-    const Color goblin = {122, 172, 72, 255}, orc = {94, 132, 62, 255}, areia = {200, 150, 104, 255};
-    const Color elfo = {240, 222, 204, 255}, cinza = {204, 162, 142, 255};
+    const Color goblin = PELE_GOBLIN, orc = PELE_ORC, areia = PELE_AREIA, elfo = PELE_ELFO, cinza = PELE_CINZA;
     switch (reino * 3 + nivel) {
         case 0: a = base(goblin, MADEIRA, MADEIRA_ESCURA, goblin, ADAGA, CABELO); a.baixinho = true; break;
         case 1: a = base(goblin, {112, 92, 62, 255}, MADEIRA_ESCURA, goblin, ARCO, CAPUZ); a.baixinho = true; break;

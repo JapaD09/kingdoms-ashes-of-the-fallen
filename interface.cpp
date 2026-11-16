@@ -575,6 +575,14 @@ void fundoDaArte(int x, int y, int tipoCarta, int i) {
 }
 
 // desenha a frente de uma carta em qualquer lugar (mão ou recompensa)
+// Preço em ouro no rodapé da carta: vermelho se não dá pra pagar, verde se é de graça.
+static void desenharPrecoDaCarta(int carta, int x, int y, bool podeComprar) {
+    int ouro = custoDaCarta(carta).ouro;
+    iconeOuro(x + 3, y + 32, 1);
+    if (ouro > 0) desenharTexto(TextFormat("%d", ouro), x + 11, y + 32, 1, podeComprar ? CONTORNO : TELHADO_VERM);
+    else desenharTexto("0", x + 11, y + 32, 1, VERDE_TEXTO);
+}
+
 void desenharFrenteDaCarta(int carta, Rectangle r, int i, bool podeComprar, bool selecionada) {
     const ModeloCarta& modelo = modeloCarta(carta);
     int x = r.x, y = r.y;
@@ -593,14 +601,7 @@ void desenharFrenteDaCarta(int carta, Rectangle r, int i, bool podeComprar, bool
     }
     if (!podeComprar) DrawRectangle(x + 3, y + 6, 26, 23, Fade(CONTORNO, 0.45f));
 
-    Recursos custo = custoDaCarta(carta);
-    if (custo.ouro > 0) {
-        iconeOuro(x + 3, y + 32, 1);
-        desenharTexto(TextFormat("%d", custo.ouro), x + 11, y + 32, 1, podeComprar ? CONTORNO : TELHADO_VERM);
-    } else {
-        iconeOuro(x + 3, y + 32, 1);
-        desenharTexto("0", x + 11, y + 32, 1, VERDE_TEXTO);
-    }
+    desenharPrecoDaCarta(carta, x, y, podeComprar);
     DrawRectangle(x + 25, y + 32, 5, 7, CONTORNO);              // pedra da raridade
     DrawRectangle(x + 26, y + 33, 3, 5, corDaRaridade(modelo.raridade));
     if (selecionada) {
@@ -1060,54 +1061,43 @@ void comecarBatalha(Jogo& jogo) {
     anim.escurecer = 1;
 }
 
+// Sai do reino rumo à expedição, se o grupo estiver pronto.
+static void irPraExpedicao(Jogo& jogo) {
+    string problema = partirEmExpedicao(jogo);
+    if (!problema.empty()) {
+        avisar(problema);
+        return;
+    }
+    comecarTelaExpedicao();
+    tela.cartaSelecionada = -1;
+    tela.atual = TELA_EXPEDICAO;
+    anim.escurecer = 1;
+}
+
+// Paga pra trocar a mão; as cartas novas entram deslizando.
+static void trocarAsCartas(Jogo& jogo) {
+    avisar(trocarMao(jogo.reino));
+    tela.cartaSelecionada = -1;
+    anim.tempoMao = 0;
+}
+
 void executarAcao(Jogo& jogo, int acao) {
     tocar(SOM_CLIQUE);
     switch (acao) {
-        case RECURSOS:
-            tela.painelRecursos = !tela.painelRecursos;
-            break;
-        case FIM_DO_TURNO:
-            comecarBatalha(jogo);
-            break;
-        case SAIR:
-            jogo.rodando = false;
-            break;
-        case DESFAZER:
-            avisar(desfazerUltimaAcao(jogo.reino));
-            break;
-        case TROCAR_MAO:
-            avisar(trocarMao(jogo.reino));
-            tela.cartaSelecionada = -1;
-            anim.tempoMao = 0;                  // as cartas novas entram deslizando
-            break;
-        case CATALOGO:
-            abrirCatalogo(jogo);
-            break;
-        case HEROIS:
-            abrirHerois();
-            break;
-        case RECRUTAR:
-            avisar(recrutarGuardas(jogo.reino));
-            break;
+        case RECURSOS:     tela.painelRecursos = !tela.painelRecursos; break;
+        case FIM_DO_TURNO: comecarBatalha(jogo); break;
+        case SAIR:         jogo.rodando = false; break;
+        case DESFAZER:     avisar(desfazerUltimaAcao(jogo.reino)); break;
+        case TROCAR_MAO:   trocarAsCartas(jogo); break;
+        case CATALOGO:     abrirCatalogo(jogo); break;
+        case HEROIS:       abrirHerois(); break;
+        case RECRUTAR:     avisar(recrutarGuardas(jogo.reino)); break;
+        case AJUDA:        tela.ajuda = true; break;
         case TROCAR_VISTA:
             modo3D = !modo3D;
             avisar(modo3D ? "Vista 3D: Q/E giram, roda dá zoom, R volta." : "Vista 2D.");
             break;
-        case AJUDA:
-            tela.ajuda = true;
-            break;
-        default: {
-            string problema = partirEmExpedicao(jogo);
-            if (!problema.empty()) {
-                avisar(problema);
-                break;
-            }
-            comecarTelaExpedicao();
-            tela.cartaSelecionada = -1;
-            tela.atual = TELA_EXPEDICAO;
-            anim.escurecer = 1;
-            break;
-        }
+        default:           irPraExpedicao(jogo); break;
     }
 }
 
@@ -1247,34 +1237,54 @@ void atualizarAnimacoes(const Jogo& jogo, float dt) {
     }
 }
 
-void atualizarTelaReino(Jogo& jogo) {
-    float dt = GetFrameTime();
-    atualizarAnimacoes(jogo, dt);
-    atualizarGalinhasDoReino(jogo.reino, dt);
-    atualizarChamines(jogo.reino, dt);
-    if (tela.ajuda) {
-        bool fechar = IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_F1);
-        if (fechar) tela.ajuda = false;
-        return;
+// Tela de recompensa depois da vitória: um clique numa das 3 cartas ou em "Nenhuma".
+static void tratarEscolhaDeCarta(Jogo& jogo) {
+    if (tela.tempoTransicao > 0 || !IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) return;
+    for (int i = 0; i < 3; i++) {
+        if (mouseSobre(areaRecompensa(i))) avisar(escolherRecompensa(jogo, i));
     }
-    if (jogo.escolhendoCarta) {                  // primeiro escolhe a carta da vitória
-        if (tela.tempoTransicao > 0 || !IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) return;
-        for (int i = 0; i < 3; i++) {
-            if (mouseSobre(areaRecompensa(i))) avisar(escolherRecompensa(jogo, i));
-        }
-        if (mouseSobre(BOTAO_SEM_CARTA)) avisar(escolherRecompensa(jogo, -1));
-        return;
+    if (mouseSobre(BOTAO_SEM_CARTA)) avisar(escolherRecompensa(jogo, -1));
+}
+
+// Atalhos de teclado do reino (os mesmos dos botões).
+static void tratarAtalhos(Jogo& jogo) {
+    if (IsKeyPressed(KEY_SPACE)) executarAcao(jogo, FIM_DO_TURNO);
+    if (IsKeyPressed(KEY_Z)) executarAcao(jogo, DESFAZER);
+    if (IsKeyPressed(KEY_T)) executarAcao(jogo, TROCAR_MAO);
+    if (IsKeyPressed(KEY_V)) executarAcao(jogo, TROCAR_VISTA);
+    if (IsKeyPressed(KEY_H)) executarAcao(jogo, HEROIS);
+}
+
+// Janelas por cima do reino (ajuda, carta, catálogo, heróis) ficam com a entrada.
+// Retorno: true se alguma delas tratou o quadro.
+static bool tratarJanelasAbertas(Jogo& jogo) {
+    if (tela.ajuda) {
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_F1)) tela.ajuda = false;
+        return true;
+    }
+    if (jogo.escolhendoCarta) {
+        tratarEscolhaDeCarta(jogo);
+        return true;
     }
     if (IsKeyPressed(KEY_F1)) tela.ajuda = true;
     if (IsKeyPressed(KEY_M)) avisar(alternarSom() ? "Som ligado." : "Som desligado.");
     if (catalogo.aberto) {
         tratarCatalogo(jogo);
-        return;
+        return true;
     }
     if (heroisAbertos()) {
         avisar(atualizarHerois(jogo.reino));
-        return;
+        return true;
     }
+    return false;
+}
+
+void atualizarTelaReino(Jogo& jogo) {
+    float dt = GetFrameTime();
+    atualizarAnimacoes(jogo, dt);
+    atualizarGalinhasDoReino(jogo.reino, dt);
+    atualizarChamines(jogo.reino, dt);
+    if (tratarJanelasAbertas(jogo)) return;
     if (IsKeyPressed(KEY_ESCAPE)) {
         tela.cartaSelecionada = -1;
         tela.painelRecursos = false;
@@ -1283,12 +1293,8 @@ void atualizarTelaReino(Jogo& jogo) {
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) cliqueDireito(jogo.reino);
     tratarTeclasCartas(jogo.reino);
-    if (IsKeyPressed(KEY_SPACE)) executarAcao(jogo, FIM_DO_TURNO);
-    if (IsKeyPressed(KEY_Z)) executarAcao(jogo, DESFAZER);
-    if (IsKeyPressed(KEY_T)) executarAcao(jogo, TROCAR_MAO);
-    if (IsKeyPressed(KEY_V)) executarAcao(jogo, TROCAR_VISTA);
-    if (IsKeyPressed(KEY_H)) executarAcao(jogo, HEROIS);
-    if (modo3D) atualizarCamera3D(GetFrameTime());
+    tratarAtalhos(jogo);
+    if (modo3D) atualizarCamera3D(dt);
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) tratarClique(jogo);
 }
 
@@ -1352,6 +1358,13 @@ void fecharJanela() {
     CloseWindow();
 }
 
+// Do título pro reino, com a tela escurecendo e clareando.
+static void sairDoTitulo() {
+    tela.atual = TELA_REINO;
+    tela.tempoTransicao = 1.3f;
+    anim.escurecer = 1;
+}
+
 void atualizarInterface(Jogo& jogo) {
     float dt = GetFrameTime();
     if (IsKeyPressed(KEY_F11)) ToggleBorderlessWindowed();
@@ -1362,11 +1375,7 @@ void atualizarInterface(Jogo& jogo) {
 
     switch (tela.atual) {
         case TELA_TITULO:
-            if (IsKeyPressed(KEY_ENTER) || IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                tela.atual = TELA_REINO;
-                tela.tempoTransicao = 1.3f;
-                anim.escurecer = 1;
-            }
+            if (IsKeyPressed(KEY_ENTER) || IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) sairDoTitulo();
             break;
         case TELA_BATALHA:
             atualizarBatalha(jogo);

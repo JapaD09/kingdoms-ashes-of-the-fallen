@@ -99,6 +99,28 @@ void desenharTrilha(Vector2 a, Vector2 b, Color cor, float grossura) {
     }
 }
 
+// Um nó do mapa: cor pelo tipo, pulso dourado se dá pra ir até ele, bandeira se o grupo está nele.
+static void desenharNo(const Expedicao& exp, const NoMapa* no) {
+    Rectangle r = areaDoNo(exp.mapa, no);
+    bool proximo = exp.fase == EXP_MAPA && ehProximo(exp, no);
+    bool sobre = proximo && mouseSobre(r);
+    Color cor = corDoNo(no->tipo);
+    if (no->visitado && no != exp.atual) cor = ColorLerp(cor, TRILHA, 0.65f);
+    if (sobre) r = {r.x - 1, r.y - 1, r.width + 2, r.height + 2};
+    caixaComSombra(r, cor);
+    iconeDoNo(no->tipo, r.x + r.width / 2 - 3.5f, r.y + r.height / 2 - 3.5f);
+    if (proximo) {
+        float pulso = 0.5f + 0.5f * sinf(tempo() * 6);
+        DrawRectangleLinesEx({r.x - 2, r.y - 2, r.width + 4, r.height + 4}, 1, Fade(DOURADO, pulso));
+    }
+    if (no == exp.atual) {                              // bandeirinha do grupo
+        int pula = static_cast<int>(fabsf(sinf(tempo() * 4)) * 2);
+        ret(r.x + 7, r.y - 9 - pula, 1, 8, CONTORNO);
+        ret(r.x + 8, r.y - 9 - pula, 5, 3.5f, TELHADO_AZUL);
+    }
+    if (sobre) textoCentralizadoEm(nomeDoNo(no->tipo), r.x + r.width / 2, r.y + r.height + 2, CONTORNO);
+}
+
 void desenharMapa(const Expedicao& exp) {
     caixaComSombra(AREA_MAPA, PAPEL_MAPA);
     for (int i = 0; i < 40; i++) {                      // manchinhas do papel
@@ -111,26 +133,7 @@ void desenharMapa(const Expedicao& exp) {
                            daqui ? VERMELHO_ESC : Fade(TRILHA, 0.7f), daqui ? 1.0f : 0.5f);
         }
     }
-    for (const NoMapa* no = exp.mapa.todos; no != nullptr; no = no->proximo) {
-        Rectangle r = areaDoNo(exp.mapa, no);
-        bool proximo = exp.fase == EXP_MAPA && ehProximo(exp, no);
-        bool sobre = proximo && mouseSobre(r);
-        Color cor = corDoNo(no->tipo);
-        if (no->visitado && no != exp.atual) cor = ColorLerp(cor, TRILHA, 0.65f);
-        if (sobre) r = {r.x - 1, r.y - 1, r.width + 2, r.height + 2};
-        caixaComSombra(r, cor);
-        iconeDoNo(no->tipo, r.x + r.width / 2 - 3.5f, r.y + r.height / 2 - 3.5f);
-        if (proximo) {
-            float pulso = 0.5f + 0.5f * sinf(tempo() * 6);
-            DrawRectangleLinesEx({r.x - 2, r.y - 2, r.width + 4, r.height + 4}, 1, Fade(DOURADO, pulso));
-        }
-        if (no == exp.atual) {                              // bandeirinha do grupo
-            int pula = static_cast<int>(fabsf(sinf(tempo() * 4)) * 2);
-            ret(r.x + 7, r.y - 9 - pula, 1, 8, CONTORNO);
-            ret(r.x + 8, r.y - 9 - pula, 5, 3.5f, TELHADO_AZUL);
-        }
-        if (sobre) textoCentralizadoEm(nomeDoNo(no->tipo), r.x + r.width / 2, r.y + r.height + 2, CONTORNO);
-    }
+    for (const NoMapa* no = exp.mapa.todos; no != nullptr; no = no->proximo) desenharNo(exp, no);
 }
 
 void desenharGrupo(const Expedicao& exp) {
@@ -215,7 +218,8 @@ void numeroDeDano(Vector2 p, int dano) {
     desenharTexto(texto, x, y, 1, Fade(JANELA, 1 - t));
 }
 
-void desenharCombate(const Expedicao& exp) {
+// Céu, campo e a fileira de árvores do fundo da luta.
+static void desenharCampoDeLuta() {
     DrawRectangleGradientV(90, 22, 226, 44, {110, 150, 196, 255}, {196, 214, 222, 255});
     DrawRectangle(90, 66, 226, 80, GRAMA);
     DrawRectangle(90, 66, 226, 2, GRAMA_ESCURA);
@@ -225,48 +229,60 @@ void desenharCombate(const Expedicao& exp) {
         DrawRectangle(92 + i * 11, 66 - alto, 8, alto, i % 3 ? FOLHA : FOLHA_CLARA);
     }
     DrawRectangleLinesEx(AREA_MAPA, 1, CONTORNO);
+}
 
-    bool brilha = estado.tempoDano < 0.15f;
-    for (int i = 0; i < exp.tamanho; i++) {
-        const Explorador& e = exp.grupo[i];
-        Vector2 p = lugarDoHeroi(i);
-        Aparencia a = aparenciaHeroi(e.heroi);
-        a.tamanho = 2;
-        if (e.vida <= 0) {
-            desenharFiguraCaida(p.x, p.y, a, false);
-            continue;
-        }
-        float avanca = (estado.tempoDano < 0.25f && exp.danoNoInimigo[estado.alvo % MAX_INIMIGOS_EXP] > 0) ? 4 : 0;
-        ret(p.x - 6, p.y - 1, 14, 2, Fade(CONTORNO, 0.25f));
-        desenharFigura(p.x + avanca, p.y, a, false, 0, brilha && exp.danoNoHeroi[i] > 0 ? 0.8f : 0);
-        barraDeVida(static_cast<int>(p.x) - 6, static_cast<int>(p.y) - 30, 12, e.vida, e.vidaMax, DOURADO);
-        if (exp.defendendo) ret(p.x + 8, p.y - 16, 2, 10, Fade(CRISTAL, 0.7f));     // escudo erguido
-        numeroDeDano(p, exp.danoNoHeroi[i]);
+// Um herói do grupo: caído, ou de pé com barra de vida, escudo e dano levado.
+static void desenharHeroiNaLuta(const Expedicao& exp, int i, bool brilha) {
+    const Explorador& e = exp.grupo[i];
+    Vector2 p = lugarDoHeroi(i);
+    Aparencia a = aparenciaHeroi(e.heroi);
+    a.tamanho = 2;
+    if (e.vida <= 0) {
+        desenharFiguraCaida(p.x, p.y, a, false);
+        return;
     }
-    for (int i = 0; i < exp.totalInimigos; i++) {
-        const InimigoExp& inimigo = exp.inimigos[i];
-        Vector2 p = lugarDoInimigo(i, inimigo.chefe);
-        Aparencia a = aparenciaDoInimigo(exp, inimigo);
-        if (inimigo.vida <= 0) {
-            desenharFiguraCaida(p.x, p.y, a, true);
-            numeroDeDano(p, exp.danoNoInimigo[i]);
-            continue;
-        }
-        Rectangle r = areaDoInimigo(exp, i);
-        ret(p.x - 3.0f * a.tamanho, p.y - 1, 7.0f * a.tamanho, 2, Fade(CONTORNO, 0.25f));
-        desenharFigura(p.x, p.y, a, true, 0, brilha && exp.danoNoInimigo[i] > 0 ? 0.8f : 0);
-        int largura = inimigo.chefe ? 24 : 12;
-        barraDeVida(static_cast<int>(p.x) - largura / 2, static_cast<int>(r.y) - 4, largura, inimigo.vida, inimigo.vidaMax, TELHADO_VERM);
-        desenharTexto(TextFormat("%d", inimigo.vida), static_cast<int>(p.x) + largura / 2 + 2, static_cast<int>(r.y) - 7, 1, CONTORNO);
-        if (i == estado.alvo) {                             // seta em cima do alvo
-            int pula = static_cast<int>(fabsf(sinf(tempo() * 5)) * 2);
-            ret(p.x - 2, r.y - 12 - pula, 5, 1, DOURADO);
-            ret(p.x - 1, r.y - 11 - pula, 3, 1, DOURADO);
-            ret(p.x, r.y - 10 - pula, 1, 1, DOURADO);
-        }
-        if (mouseSobre(r)) DrawRectangleLinesEx(r, 1, Fade(TEXTO_CLARO, 0.6f));
+    float avanca = (estado.tempoDano < 0.25f && exp.danoNoInimigo[estado.alvo % MAX_INIMIGOS_EXP] > 0) ? 4 : 0;
+    ret(p.x - 6, p.y - 1, 14, 2, Fade(CONTORNO, 0.25f));
+    desenharFigura(p.x + avanca, p.y, a, false, 0, brilha && exp.danoNoHeroi[i] > 0 ? 0.8f : 0);
+    barraDeVida(static_cast<int>(p.x) - 6, static_cast<int>(p.y) - 30, 12, e.vida, e.vidaMax, DOURADO);
+    if (exp.defendendo) ret(p.x + 8, p.y - 16, 2, 10, Fade(CRISTAL, 0.7f));     // escudo erguido
+    numeroDeDano(p, exp.danoNoHeroi[i]);
+}
+
+// Setinha dourada pulando em cima do inimigo escolhido como alvo.
+static void desenharSetaDoAlvo(float x, float topo) {
+    int pula = static_cast<int>(fabsf(sinf(tempo() * 5)) * 2);
+    ret(x - 2, topo - 12 - pula, 5, 1, DOURADO);
+    ret(x - 1, topo - 11 - pula, 3, 1, DOURADO);
+    ret(x, topo - 10 - pula, 1, 1, DOURADO);
+}
+
+// Um inimigo: caído, ou de pé com vida, seta de alvo e contorno quando o mouse passa.
+static void desenharInimigoNaLuta(const Expedicao& exp, int i, bool brilha) {
+    const InimigoExp& inimigo = exp.inimigos[i];
+    Vector2 p = lugarDoInimigo(i, inimigo.chefe);
+    Aparencia a = aparenciaDoInimigo(exp, inimigo);
+    if (inimigo.vida <= 0) {
+        desenharFiguraCaida(p.x, p.y, a, true);
         numeroDeDano(p, exp.danoNoInimigo[i]);
+        return;
     }
+    Rectangle r = areaDoInimigo(exp, i);
+    ret(p.x - 3.0f * a.tamanho, p.y - 1, 7.0f * a.tamanho, 2, Fade(CONTORNO, 0.25f));
+    desenharFigura(p.x, p.y, a, true, 0, brilha && exp.danoNoInimigo[i] > 0 ? 0.8f : 0);
+    int largura = inimigo.chefe ? 24 : 12;
+    barraDeVida(static_cast<int>(p.x) - largura / 2, static_cast<int>(r.y) - 4, largura, inimigo.vida, inimigo.vidaMax, TELHADO_VERM);
+    desenharTexto(TextFormat("%d", inimigo.vida), static_cast<int>(p.x) + largura / 2 + 2, static_cast<int>(r.y) - 7, 1, CONTORNO);
+    if (i == estado.alvo) desenharSetaDoAlvo(p.x, r.y);
+    if (mouseSobre(r)) DrawRectangleLinesEx(r, 1, Fade(TEXTO_CLARO, 0.6f));
+    numeroDeDano(p, exp.danoNoInimigo[i]);
+}
+
+void desenharCombate(const Expedicao& exp) {
+    desenharCampoDeLuta();
+    bool brilha = estado.tempoDano < 0.15f;
+    for (int i = 0; i < exp.tamanho; i++) desenharHeroiNaLuta(exp, i, brilha);
+    for (int i = 0; i < exp.totalInimigos; i++) desenharInimigoNaLuta(exp, i, brilha);
     for (int acao = 0; acao < 4; acao++) {
         const char* texto = acao == USAR_POCAO ? TextFormat("Poção (%d)", exp.pocoes) : NOMES_ACOES[acao];
         if (acao == ATACAR) botaoPrincipal(botaoDaAcao(acao), texto);
@@ -362,6 +378,17 @@ bool atualizarTelaExpedicao(Jogo& jogo) {
     return false;
 }
 
+// Caixa final: como a expedição acabou e o que o grupo trouxe.
+static void desenharFimDaExpedicao(const Expedicao& exp) {
+    const char* titulo = exp.desfecho == DERROTADA ? "Expedição perdida" : exp.desfecho == CHEFE_VENCIDO ? "Região conquistada!" : "De volta pra casa";
+    string texto = exp.mensagem;
+    if (exp.desfecho != DERROTADA) {
+        texto += "\n" + string(TextFormat("%d ouro, %d cristais, %d itens", exp.saque.ouro, exp.saque.cristais, exp.saque.totalItens));
+    }
+    caixaDeTexto(titulo, texto, 94);
+    botaoPrincipal(BOTAO_CONTINUAR, "Pro reino");
+}
+
 void desenharTelaExpedicao(const Jogo& jogo) {
     const Expedicao& exp = jogo.expedicao;
     DrawRectangle(0, 0, VL, VA, FUNDO_EXPEDICAO);
@@ -388,13 +415,5 @@ void desenharTelaExpedicao(const Jogo& jogo) {
         caixaDeTexto(nullptr, exp.mensagem, 94);
         botaoPrincipal(BOTAO_CONTINUAR, "Continuar");
     }
-    if (exp.fase == EXP_FIM) {
-        const char* titulo = exp.desfecho == DERROTADA ? "Expedição perdida" : exp.desfecho == CHEFE_VENCIDO ? "Região conquistada!" : "De volta pra casa";
-        string texto = exp.mensagem;
-        if (exp.desfecho != DERROTADA) {
-            texto += "\n" + string(TextFormat("%d ouro, %d cristais, %d itens", exp.saque.ouro, exp.saque.cristais, exp.saque.totalItens));
-        }
-        caixaDeTexto(titulo, texto, 94);
-        botaoPrincipal(BOTAO_CONTINUAR, "Pro reino");
-    }
+    if (exp.fase == EXP_FIM) desenharFimDaExpedicao(exp);
 }

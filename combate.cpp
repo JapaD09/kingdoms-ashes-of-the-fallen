@@ -275,18 +275,20 @@ void recompensaDaBatalha(const Batalha& b, int& ouro, int& cristais) {
     cristais = 2 + b.turno / 4 + (turnoDeChefe(b.turno) ? 3 : 0);
 }
 
-string aplicarResultado(const Batalha& b, Reino& reino) {
-    // guardas que caíram não voltam
-    int guardasVivos = 0;
+// Quantos guardas do reino caíram na batalha (eles não voltam pro quartel).
+static int guardasPerdidos(const Batalha& b) {
+    int naBatalha = 0, vivos = 0;
     for (int i = 0; i < b.total; i++) {
         const Lutador& l = b.lutadores[i];
-        if (l.lado == ALIADO && l.tropa == GUARDA && l.heroi < 0 && l.vida > 0) guardasVivos++;
+        if (l.lado != ALIADO || l.tropa != GUARDA) continue;
+        naBatalha++;
+        if (l.heroi < 0 && l.vida > 0) vivos++;
     }
-    int guardasNaBatalha = 0;
-    for (int i = 0; i < b.total; i++) {
-        if (b.lutadores[i].lado == ALIADO && b.lutadores[i].tropa == GUARDA) guardasNaBatalha++;
-    }
-    int perdidos = guardasNaBatalha - guardasVivos;
+    return naBatalha - vivos;
+}
+
+string aplicarResultado(const Batalha& b, Reino& reino) {
+    int perdidos = guardasPerdidos(b);
     reino.soldados -= perdidos;
 
     reino.vidaCastelo -= b.danoNoCastelo;

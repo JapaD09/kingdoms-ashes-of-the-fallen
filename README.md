@@ -124,6 +124,7 @@ A janela pode ser redimensionada à vontade.
 - [x] Etapa 8 — mapa da expedição, saque e combate por ações
 - [x] Vitória com resumo e pontuação, carta de recompensa, ajuda (F1) e som
 - [x] Etapa 11 — balanceamento com simulador (`simulador.cpp`)
+- [x] Etapa 12 — README, [relatório técnico](RELATORIO.md) e apresentação
 
 ## Estruturas de dados
 

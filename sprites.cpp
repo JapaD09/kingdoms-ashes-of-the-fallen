@@ -67,6 +67,8 @@ static int piscada(float velocidade) {
     return static_cast<int>(GetTime() * velocidade) % 2;
 }
 
+static void detalhesDoCastelo(int x, int y, int s);
+
 void desenharCastelo(int x, int y, int s) {
     PX(3, 10, 16, 11, PEDRA);
     for (int i = 3; i < 19; i += 3) PX(i, 9, 2, 1, PEDRA);
@@ -88,6 +90,11 @@ void desenharCastelo(int x, int y, int s) {
     PX(10, 7, 2, 2, JANELA);
     PX(3, 11, 1, 2, JANELA);
     PX(18, 11, 1, 2, JANELA);
+    detalhesDoCastelo(x, y, s);
+}
+
+// Tijolos, telhas, frisos das janelas e a grade do portão do castelo.
+static void detalhesDoCastelo(int x, int y, int s) {
     TIJOLOS(3, 10, 16, 11);
     TIJOLOS(1, 6, 5, 15);
     TIJOLOS(16, 6, 5, 15);

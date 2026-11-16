@@ -320,33 +320,49 @@ void desenharCastelo3D(Vector3 base, float tempo) {
     rlPopMatrix();
 }
 
+// Pinheiro: tronco curto e três cones, do mais escuro (embaixo) pro mais claro.
+static void pinheiro3D(int tamanho, Color escuro, Color medio, Color claro) {
+    float altura = 8 + tamanho * 3, raio = 3 + tamanho;
+    bloco(-0.6f, -0.6f, 1.2f, 1.2f, 0, 2.5f, TRONCO);
+    cone(raio, 2, altura * 0.5f, escuro);
+    cone(raio * 0.78f, 2 + altura * 0.3f, altura * 0.45f, medio);
+    cone(raio * 0.52f, 2 + altura * 0.58f, altura * 0.42f, claro);
+}
+
+// Bétula: tronco branco com listras escuras e copa redonda.
+static void betula3D(int tamanho, Color escuro, Color medio, Color claro) {
+    float tronco = 4 + tamanho * 2, raio = 2 + tamanho;
+    bloco(-0.5f, -0.5f, 1, 1, 0, tronco + 1, CASCA_BETULA);
+    for (float y = 1; y < tronco; y += 2) bloco(-0.55f, -0.55f, 1.1f, 1.1f, y, 0.4f, CONTORNO);
+    copa(raio, tronco, escuro, medio, claro);
+}
+
+// Árvore seca: só o tronco e dois galhos em L.
+static void arvoreSeca3D(int tamanho) {
+    float altura = 6 + tamanho * 2;
+    bloco(-0.5f, -0.5f, 1, 1, 0, altura, TRONCO_SECO);
+    bloco(-2.5f, -0.3f, 2, 0.6f, altura - 3, 0.6f, TRONCO_SECO);
+    bloco(-2.5f, -0.3f, 0.6f, 0.6f, altura - 3, 2, TRONCO_SECO);
+    bloco(0.5f, -0.3f, 2, 0.6f, altura - 1.5f, 0.6f, TRONCO_SECO);
+    bloco(2, -0.3f, 0.6f, 0.6f, altura - 1.5f, 2, TRONCO_SECO);
+}
+
 void desenharArvore3D(int tipo, int tamanho, int tom, Vector3 base, float vento) {
     Color escuro, medio, claro;
     coresDaFolha(tom, escuro, medio, claro);
     comecarModelo(base, 1);
     rlRotatef(vento * 2.5f, 0, 0, 1);                        // balança com o vento
     switch (tipo) {
-        case PINHEIRO: {
-            float altura = 8 + tamanho * 3, raio = 3 + tamanho;
-            bloco(-0.6f, -0.6f, 1.2f, 1.2f, 0, 2.5f, TRONCO);
-            cone(raio, 2, altura * 0.5f, escuro);
-            cone(raio * 0.78f, 2 + altura * 0.3f, altura * 0.45f, medio);
-            cone(raio * 0.52f, 2 + altura * 0.58f, altura * 0.42f, claro);
+        case PINHEIRO:
+            pinheiro3D(tamanho, escuro, medio, claro);
             break;
-        }
-        case CARVALHO: {
-            float raio = 3 + tamanho, tronco = 2.5f + tamanho * 0.5f;
-            bloco(-0.7f, -0.7f, 1.4f, 1.4f, 0, tronco + 1, TRONCO);
-            copa(raio, tronco, escuro, medio, claro);
+        case CARVALHO:
+            bloco(-0.7f, -0.7f, 1.4f, 1.4f, 0, 3.5f + tamanho * 0.5f, TRONCO);
+            copa(3 + tamanho, 2.5f + tamanho * 0.5f, escuro, medio, claro);
             break;
-        }
-        case BETULA: {
-            float tronco = 4 + tamanho * 2, raio = 2 + tamanho;
-            bloco(-0.5f, -0.5f, 1, 1, 0, tronco + 1, CASCA_BETULA);
-            for (float y = 1; y < tronco; y += 2) bloco(-0.55f, -0.55f, 1.1f, 1.1f, y, 0.4f, CONTORNO);
-            copa(raio, tronco, escuro, medio, claro);
+        case BETULA:
+            betula3D(tamanho, escuro, medio, claro);
             break;
-        }
         case ARBUSTO: {
             float raio = 2 + tamanho;
             copa(raio, 0, escuro, medio, claro);
@@ -356,15 +372,9 @@ void desenharArvore3D(int tipo, int tamanho, int tom, Vector3 base, float vento)
             }
             break;
         }
-        default: {
-            float altura = 6 + tamanho * 2;
-            bloco(-0.5f, -0.5f, 1, 1, 0, altura, TRONCO_SECO);
-            bloco(-2.5f, -0.3f, 2, 0.6f, altura - 3, 0.6f, TRONCO_SECO);
-            bloco(-2.5f, -0.3f, 0.6f, 0.6f, altura - 3, 2, TRONCO_SECO);
-            bloco(0.5f, -0.3f, 2, 0.6f, altura - 1.5f, 0.6f, TRONCO_SECO);
-            bloco(2, -0.3f, 0.6f, 0.6f, altura - 1.5f, 2, TRONCO_SECO);
+        default:
+            arvoreSeca3D(tamanho);
             break;
-        }
     }
     rlPopMatrix();
 }

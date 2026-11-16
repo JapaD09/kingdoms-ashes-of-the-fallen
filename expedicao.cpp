@@ -352,6 +352,21 @@ const char* nomeDoNo(int tipo) {
 
 // mapa
 
+// Liga uma camada do mapa à seguinte. Cada nó daqui ganha pelo menos uma saída
+// e cada nó de lá ganha pelo menos uma entrada, então nunca sobra beco sem saída.
+static void ligarCamadas(NoMapa* daqui[], int nDaqui, NoMapa* dali[], int nDali) {
+    for (int p = 0; p < nDaqui; p++) {
+        int reto = p * nDali / nDaqui;
+        ligar(daqui[p], dali[reto]);
+        if (chance(50) && reto + 1 < nDali) ligar(daqui[p], dali[reto + 1]);
+    }
+    for (int q = 0; q < nDali; q++) {
+        bool temEntrada = false;
+        for (int p = 0; p < nDaqui; p++) temEntrada = temEntrada || jaLigado(daqui[p], dali[q]);
+        if (!temEntrada) ligar(daqui[q * nDaqui / nDali], dali[q]);
+    }
+}
+
 void gerarMapa(MapaExpedicao& mapa) {
     liberarMapa(mapa);
     NoMapa* camadas[CAMADAS][MAX_CAMINHOS] = {};
@@ -366,24 +381,9 @@ void gerarMapa(MapaExpedicao& mapa) {
     camadas[CAMADAS - 1][0] = mapa.chefe = criarNo(mapa, NO_CHEFE, CAMADAS - 1, 0);
     tamanho[CAMADAS - 1] = 1;
 
-    for (int c = 0; c < CAMADAS - 1; c++) {
-        int daqui = tamanho[c], dali = tamanho[c + 1];
-        // todo nó tem pelo menos uma saída, então nunca existe beco sem saída
-        for (int p = 0; p < daqui; p++) {
-            int reto = p * dali / daqui;
-            ligar(camadas[c][p], camadas[c + 1][reto]);
-            if (chance(50) && reto + 1 < dali) ligar(camadas[c][p], camadas[c + 1][reto + 1]);
-        }
-        // e todo nó da camada seguinte tem pelo menos uma entrada
-        for (int q = 0; q < dali; q++) {
-            bool temEntrada = false;
-            for (int p = 0; p < daqui; p++) temEntrada = temEntrada || jaLigado(camadas[c][p], camadas[c + 1][q]);
-            if (!temEntrada) ligar(camadas[c][q * daqui / dali], camadas[c + 1][q]);
-        }
-        if (c == 0) {                                   // da entrada dá pra ir pra qualquer nó da 1ª camada
-            for (int q = 0; q < dali; q++) ligar(camadas[0][0], camadas[1][q]);
-        }
-    }
+    for (int c = 0; c < CAMADAS - 1; c++) ligarCamadas(camadas[c], tamanho[c], camadas[c + 1], tamanho[c + 1]);
+    // da entrada dá pra ir pra qualquer nó da 1ª camada
+    for (int q = 0; q < tamanho[1]; q++) ligar(camadas[0][0], camadas[1][q]);
     mapa.entrada->visitado = true;
 }
 
@@ -483,6 +483,28 @@ string avancar(Expedicao& exp, int caminho) {
     return "";
 }
 
+// Caravana: 30 de ouro garantido, mas às vezes é emboscada.
+static void abrirCaravana(Expedicao& exp) {
+    exp.saque.ouro += 30;
+    if (chance(35)) {
+        comecarCombate(exp, NO_COMBATE);
+        exp.mensagem = "+30 ouro... e era uma emboscada!";
+    } else {
+        avisar(exp, "Acharam 30 de ouro na carroça.");
+    }
+}
+
+// Altar: troca 20 de ouro do saque por +2 de ataque até o fim da expedição.
+static void rezarNoAltar(Expedicao& exp) {
+    if (exp.saque.ouro < 20) {
+        avisar(exp, "Não tem 20 de ouro no saque. O altar ficou em silêncio.");
+        return;
+    }
+    exp.saque.ouro -= 20;
+    exp.forcaExtra += 2;
+    avisar(exp, "O altar brilhou: +2 de ataque até o fim da expedição.");
+}
+
 void escolherNoEvento(Expedicao& exp, int opcao) {
     if (exp.fase != EXP_EVENTO) return;
     if (opcao != 0) {
@@ -491,13 +513,7 @@ void escolherNoEvento(Expedicao& exp, int opcao) {
     }
     switch (exp.evento) {
         case CARAVANA_ABANDONADA:
-            exp.saque.ouro += 30;
-            if (chance(35)) {
-                comecarCombate(exp, NO_COMBATE);
-                exp.mensagem = "+30 ouro... e era uma emboscada!";
-            } else {
-                avisar(exp, "Acharam 30 de ouro na carroça.");
-            }
+            abrirCaravana(exp);
             break;
         case VIAJANTE_FERIDO:
             machucarTodos(exp, 3);
@@ -511,19 +527,46 @@ void escolherNoEvento(Expedicao& exp, int opcao) {
             avisar(exp, "+15 madeira e +10 pedra. A travessia custou 4 de vida de cada um.");
             break;
         case ALTAR_ANTIGO:
-            if (exp.saque.ouro < 20) {
-                avisar(exp, "Não tem 20 de ouro no saque. O altar ficou em silêncio.");
-            } else {
-                exp.saque.ouro -= 20;
-                exp.forcaExtra += 2;
-                avisar(exp, "O altar brilhou: +2 de ataque até o fim da expedição.");
-            }
+            rezarNoAltar(exp);
             break;
         default:
             exp.bonusDoCombate = 25;
             comecarCombate(exp, NO_COMBATE);
             exp.mensagem = "Ataque surpresa! O baú vale 25 de ouro a mais.";
             break;
+    }
+}
+
+// Fuga: 55% de chance, menos contra o chefe. Fugir custa 1/4 do ouro do saque.
+// Retorno: true se o grupo escapou (o combate acaba aqui).
+static bool tentarFugir(Expedicao& exp) {
+    if (exp.atual->tipo != NO_CHEFE && chance(55)) {
+        int perdido = exp.saque.ouro / 4;
+        exp.saque.ouro -= perdido;
+        avisar(exp, "O grupo fugiu e deixou " + to_string(perdido) + " de ouro pra trás.");
+        return true;
+    }
+    exp.mensagem = exp.atual->tipo == NO_CHEFE ? "Não dá pra fugir do chefe!" : "Não deu pra fugir!";
+    return false;
+}
+
+// Aplica a ação escolhida pelo jogador. Retorno: true se o combate acabou por fuga.
+static bool acaoDoGrupo(Expedicao& exp, int acao, int alvo) {
+    switch (acao) {
+        case ATACAR:
+            ataqueDoGrupo(exp, alvo);
+            exp.mensagem = "O grupo atacou.";
+            return false;
+        case DEFENDER:
+            exp.defendendo = true;
+            exp.mensagem = "Escudos erguidos: o dano desta rodada cai pela metade.";
+            return false;
+        case USAR_POCAO:
+            usarPocao(exp);
+            exp.mensagem = "Poção: +12 de vida pra cada herói.";
+            return false;
+        default:
+            return tentarFugir(exp);
     }
 }
 
@@ -541,42 +584,14 @@ void agirNoCombate(Expedicao& exp, int acao, int alvo) {
     exp.rodada++;
     exp.defendendo = false;
 
-    // 1. a ação do jogador
-    switch (acao) {
-        case ATACAR:
-            ataqueDoGrupo(exp, alvo);
-            exp.mensagem = "O grupo atacou.";
-            break;
-        case DEFENDER:
-            exp.defendendo = true;
-            exp.mensagem = "Escudos erguidos: o dano desta rodada cai pela metade.";
-            break;
-        case USAR_POCAO:
-            usarPocao(exp);
-            exp.mensagem = "Poção: +12 de vida pra cada herói.";
-            break;
-        default:
-            if (exp.atual->tipo != NO_CHEFE && chance(55)) {
-                int perdido = exp.saque.ouro / 4;
-                exp.saque.ouro -= perdido;
-                avisar(exp, "O grupo fugiu e deixou " + to_string(perdido) + " de ouro pra trás.");
-                return;
-            }
-            exp.mensagem = exp.atual->tipo == NO_CHEFE ? "Não dá pra fugir do chefe!" : "Não deu pra fugir!";
-            break;
-    }
+    if (acaoDoGrupo(exp, acao, alvo)) return;           // 1. a ação do jogador
     curasDoGrupo(exp);
-
-    // 2. acabaram os inimigos?
-    if (inimigosVivos(exp) == 0) {
+    if (inimigosVivos(exp) == 0) {                      // 2. acabaram os inimigos?
         recompensar(exp);
         return;
     }
-    // 3. os que sobraram atacam
-    vezDosInimigos(exp);
-
-    // 4. o grupo caiu?
-    if (vivosNoGrupo(exp) == 0) {
+    vezDosInimigos(exp);                                // 3. os que sobraram atacam
+    if (vivosNoGrupo(exp) == 0) {                       // 4. o grupo caiu?
         exp.desfecho = DERROTADA;
         exp.fase = EXP_FIM;
         exp.mensagem = "O grupo foi derrotado. Todo o saque ficou pra trás.";
