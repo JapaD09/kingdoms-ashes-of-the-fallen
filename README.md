@@ -1,11 +1,23 @@
 # Kingdoms: Ashes of the Fallen
 
-Jogo de estratégia medieval em C++, com janela gráfica feita em [raylib](https://www.raylib.com/). O jogador administra um reino,
-monta grupos de expedição e explora mapas com caminhos ramificados até enfrentar
-o chefe da região. Roguelike PvE: se o grupo cair, o saque vai junto.
-
 Projeto Final de Programação e Sistemas Computacionais II — Centro Universitário Campo Real.
 
+## Sobre o sistema
+
+**Tema:** estratégia medieval de fantasia. O jogador é o governante de um reino pequeno cercado por
+6 reinos inimigos (goblins, orcs, mortos-vivos, areias, elfos e cinzas). A ideia de cartas e reinos
+inimigos veio do *9 Kings*, e as expedições seguem o estilo roguelike.
+
+**O que o sistema faz:** é um jogo por turnos em C++, com janela gráfica feita em
+[raylib](https://www.raylib.com/). A cada turno o jogador:
+
+1. joga cartas pra construir e melhorar prédios no reino (fazendas, minas, quartéis, torres...);
+2. administra os recursos (ouro, madeira, pedra, comida, ferro, população);
+3. invoca heróis e manda o grupo em expedições por mapas com caminhos ramificados até o chefe da região;
+4. encerra o turno: a produção entra, a fila de construção anda e um reino inimigo ataca o castelo.
+
+Vence quem derrotar os 6 chefes. Se o castelo cair, a partida acaba e o **Novo jogo** libera toda a
+memória da partida antiga antes de começar outra. Se o grupo cair numa expedição, o saque vai junto.
 ## Como compilar e executar
 
 ### Windows
@@ -19,7 +31,6 @@ Com a raylib instalada no sistema, é só rodar `make` e depois `./kingdoms`.
 ## Como jogar
 
 O reino é uma grade 5x5 com o castelo no meio; no começo só o 3x3 central está aberto.
-A ideia de cartas e reinos inimigos veio do *9 Kings*.
 
 **Cartas.** Todo turno vem uma mão de 5 cartas tiradas do monte (44 cartas no começo).
 Clique numa carta (ou aperte 1 a 5) e depois num lote. As cartas que sobram vão pro descarte
@@ -127,6 +138,48 @@ A janela pode ser redimensionada à vontade.
 - [x] Etapa 12 — README, [relatório técnico](RELATORIO.md) e apresentação
 
 ## Estruturas de dados
+
+### Diagrama
+
+Onde cada estrutura mora dentro do estado do jogo (`Jogo`, em `jogo.h`):
+
+```mermaid
+flowchart TD
+    J["Jogo"] --> R["Reino"]
+    J --> C["catalogo: NoArvore*<br/>árvore binária de busca (R8)"]
+    J --> E["Expedicao"]
+    R --> L["edificios: ListaEdificios<br/>lista encadeada (R5)"]
+    R --> P["historico: PilhaAcoes<br/>pilha do Desfazer (R6)"]
+    R --> F["ordens: FilaConstrucao<br/>fila de construção (R7)"]
+    R --> B["baralho: monte e descarte<br/>duas PilhaCartas"]
+    E --> M["mapa: MapaExpedicao<br/>grafo de NoMapa (recursão R3)"]
+```
+
+Como os nós se ligam (todos criados com `new` e liberados com `delete`, R4):
+
+```
+Lista (prédios)      primeiro -> [Fazenda] -> [Serraria] -> [Quartel] -> nullptr
+                                                              ^ ultimo  (inserir no fim é O(1))
+
+Pilha (Desfazer)     topo -> [subiu o Quartel] -> [construiu Fazenda] -> [abriu lote] -> nullptr
+                             (sai primeiro o último que entrou: LIFO)
+
+Fila (construção)    inicio -> [Fazenda] -> [Torre] -> [Mercado] -> nullptr
+                                                        ^ fim  (entra no fim, sai do início: FIFO)
+
+Árvore (catálogo)                    [50]
+                                   /      \
+                               [25]        [75]        menores à esquerda,
+                              /    \       /   \       maiores à direita
+                           [12]   [37]  [62]  [87]     (3 primeiros níveis de 4;
+                                                        14 itens no total)
+
+Mapa (expedição)     [entrada] -> [combate] -> [evento] -> ... -> [chefe]
+                                \-> [tesouro] ----/            cada nó aponta pros próximos
+```
+
+### Onde cada uma é usada
+
 
 - **Lista encadeada (R5)** — `estruturas.cpp`: os edifícios construídos. Inserção no fim em O(1)
   (guardamos o ponteiro do último nó), remoção por id tratando lista vazia / primeiro / meio / fim,
@@ -241,7 +294,12 @@ que chegaram ao turno 60 com o castelo de pé mas sem derrotar todos os chefes.
 | `estruturas.h/.cpp` | Lista encadeada, pilha, fila e árvore binária de busca |
 | `algoritmos.h/.cpp` | Insertion sort, busca sequencial e busca binária |
 
-## Integrantes
+## Integrantes e divisão de responsabilidades
 
-- **Eduarda** — reino, estruturas e algoritmos
-- **Mateus** — jogo/menus, expedição e combate
+| Integrante | Responsável por | Arquivos principais |
+|---|---|---|
+| **Eduarda** | Recursos e estado do reino; pilha do Desfazer e fila de construção; árvore do catálogo; ordenação e buscas; cenário em volta do reino; janela redimensionável e primeira versão da vista 3D | `reino`, `estruturas` (pilha, fila, árvore), `algoritmos`, `natureza`, `visao3d` |
+| **Mateus** | Esqueleto do jogo e menus; interface em raylib e pixel art; lista encadeada dos prédios e economia do turno; cartas, heróis, batalha e os 6 reinos; expedição com mapa recursivo; som; simulador e balanceamento | `jogo`, `interface`, `ui`, `figuras`, `sprites`, `estruturas` (lista), `cartas`, `herois`, `inimigos`, `combate`, `expedicao`, `som`, `simulador` |
+| **Os dois** | Testes (`testes.cpp`), README, relatório técnico e apresentação | — |
+
+O histórico de commits mostra a parte de cada um.
