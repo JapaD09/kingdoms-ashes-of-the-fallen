@@ -1,6 +1,6 @@
 // Demonstração no terminal: mostra as estruturas e os algoritmos do jogo
 // funcionando sem abrir a janela. Usa as mesmas funções do jogo de verdade.
-// Compilar: make demo   (ou g++ -std=c++17 demo.cpp + os .cpp da lógica)
+// Pra compilar e rodar no Windows: dois cliques no demo.bat.
 
 #include "jogo.h"
 #include "reino.h"

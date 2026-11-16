@@ -25,9 +25,6 @@ memória da partida antiga antes de começar outra. Se o grupo cair numa expedi�
    Ele instala em `C:\raylib` e já traz o compilador junto.
 2. Dê dois cliques em `compilar.bat` (ou rode ele pelo terminal dentro da pasta do projeto).
 
-### Linux
-Com a raylib instalada no sistema, é só rodar `make` e depois `./kingdoms`.
-
 ## Como jogar
 
 O reino é uma grade 5x5 com o castelo no meio; no começo só o 3x3 central está aberto.
@@ -210,7 +207,7 @@ Na tela **Catálogo** (`algoritmos.cpp`):
 A lógica usa um sorteio próprio com semente (`aleatorio.cpp`), então os testes dão sempre o mesmo resultado.
 
 ```
-make testes && ./testes
+testes.bat
 ```
 
 ## Demonstração no terminal
@@ -221,7 +218,7 @@ catálogo, ordena por preço, compara as três buscas e roda um turno inteiro co
 Também mede o tempo de 1000 buscas num vetor de 10 mil itens:
 
 ```
-make demo && ./demo
+demo.bat
 ```
 
 Num notebook comum deu algo perto de 4 ms pra sequencial (10000 comparações por busca)
