@@ -30,6 +30,7 @@ struct Pincel {
 const Color SOMBRA_FINA = {38, 26, 22, 70};
 const Color LUZ_FINA = {255, 250, 235, 80};
 
+// Retorno: uma aparência com as cores, a arma e o chapéu dados (o resto fica padrão).
 Aparencia base(Color pele, Color roupa, Color escura, Color detalhe, int arma, int chapeu) {
     Aparencia a;
     a.pele = pele;
@@ -59,6 +60,7 @@ static void armaDeLamina(const Pincel& p, int arma, int topo) {
     }
 }
 
+// Desenha a arma da figura na mão. topo: altura da cabeça, pra arma acompanhar o corpo.
 void desenharArma(const Pincel& p, const Aparencia& a, int topo) {
     switch (a.arma) {
         case ESPADA:
@@ -116,6 +118,7 @@ static void chapeuEnfeitado(const Pincel& p, const Aparencia& a, int topo) {
     }
 }
 
+// Cabeça com olho, cabelo e o chapéu/elmo da aparência.
 void desenharCabeca(const Pincel& p, const Aparencia& a, int topo) {
     p.px(-1, topo, 3, 3, a.pele);
     p.px(-1, topo + 2.5f, 3, 0.5f, SOMBRA_FINA);       // queixo
@@ -126,6 +129,7 @@ void desenharCabeca(const Pincel& p, const Aparencia& a, int topo) {
     chapeuEnfeitado(p, a, topo);
 }
 
+// Cavalo do cavaleiro. passo alterna as patas pra parecer que anda.
 void desenharCavalo(const Pincel& p, int passo) {
     p.px(-5, -6, 1, 4, CAVALO_ESC);                    // rabo
     p.px(-4, -6, 9, 4, CAVALO);
@@ -147,6 +151,7 @@ void desenharCavalo(const Pincel& p, int passo) {
     p.px(5, -11, 0.5f, 1, CAVALO_ESC);                 // orelha
 }
 
+// O dragão (chefe) desenhado inteiro, com as asas batendo conforme o passo.
 void desenharDragao(const Pincel& p, const Aparencia& a, int passo) {
     p.px(-10, -3, 2, 1, a.roupaEscura);                // rabo
     p.px(-8, -4, 3, 1, a.roupaEscura);
@@ -197,6 +202,7 @@ static void desenharTronco(const Pincel& p, const Aparencia& a, int ombro, int c
     }
 }
 
+// Desenha a figura uma vez, sem contorno (dragão, cavaleiro ou pessoa a pé).
 static void figuraSemContorno(float x, float y, const Aparencia& a, bool olhaEsquerda, int passo, float brilho) {
     Pincel p = {x, y, a.tamanho, olhaEsquerda, brilho};
     if (a.especial == DRAGAO) {
@@ -225,6 +231,8 @@ static void figuraSemContorno(float x, float y, const Aparencia& a, bool olhaEsq
     desenharArma(p, a, cabeca + 1);
 }
 
+// Desenha a figura com contorno escuro: primeiro a silhueta deslocada, depois as cores.
+// (x, y) são os pés; brilho > 0 deixa a figura piscando branca (levou golpe).
 void desenharFigura(float x, float y, const Aparencia& a, bool olhaEsquerda, int passo, float brilho) {
     for (int etapa = 0; etapa < PASSOS_CONTORNO; etapa++) {
         passoDoContorno(etapa, CONTORNO);
@@ -232,6 +240,7 @@ void desenharFigura(float x, float y, const Aparencia& a, bool olhaEsquerda, int
     }
 }
 
+// Figura deitada no chão, pra quem morreu.
 void desenharFiguraCaida(float x, float y, const Aparencia& a, bool olhaEsquerda) {
     Pincel p = {x, y, a.tamanho, olhaEsquerda, 0};
     if (a.especial == DRAGAO) {
@@ -248,6 +257,7 @@ void desenharFiguraCaida(float x, float y, const Aparencia& a, bool olhaEsquerda
     if (a.arma != SEM_ARMA) p.px(-3, -4, 5, 1, Fade(PEDRA, 0.6f));
 }
 
+// Retorno: o visual de cada tropa do reino.
 Aparencia aparenciaTropa(int tropa) {
     Aparencia a;
     switch (tropa) {
@@ -275,6 +285,7 @@ Aparencia aparenciaTropa(int tropa) {
     return a;
 }
 
+// Retorno: o visual de cada herói.
 Aparencia aparenciaHeroi(int heroi) {
     Aparencia a;
     switch (heroi) {
@@ -303,6 +314,7 @@ Aparencia aparenciaHeroi(int heroi) {
 static const Color PELE_GOBLIN = {122, 172, 72, 255}, PELE_ORC = {94, 132, 62, 255}, PELE_AREIA = {200, 150, 104, 255};
 static const Color PELE_ELFO = {240, 222, 204, 255}, PELE_CINZA = {204, 162, 142, 255};
 
+// Retorno: o visual da tropa inimiga do reino e do nível (0 fraca, 1 média, 2 forte).
 Aparencia aparenciaInimigo(int reino, int nivel) {
     Aparencia a;
     const Color goblin = PELE_GOBLIN, orc = PELE_ORC, areia = PELE_AREIA, elfo = PELE_ELFO, cinza = PELE_CINZA;
@@ -336,12 +348,14 @@ Aparencia aparenciaInimigo(int reino, int nivel) {
     return a;
 }
 
+// Retorno: a cor da bandeira de cada reino inimigo.
 Color corDoReino(int reino) {
     const Color cores[6] = {{112, 162, 62, 255}, {172, 52, 42, 255}, {122, 72, 162, 255},
                             {222, 172, 62, 255}, {192, 202, 222, 255}, {62, 52, 52, 255}};
     return cores[reino % 6];
 }
 
+// Bandeira no mastro com o pano balançando. s: escala.
 void desenharBandeira(int x, int y, int reino, int s) {
     Color cor = corDoReino(reino);
     float onda = sinf(static_cast<float>(GetTime()) * 4) > 0 ? 0.5f : 0;      // pano balançando

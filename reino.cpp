@@ -27,6 +27,7 @@ ModeloEdificio MODELOS[TOTAL_TIPOS_EDIFICIO];
 bool modelosProntos = false;
 Economia economiaAtual;
 
+// Aplica uma porcentagem a um valor, arredondando (ex.: ajustar(30, 150) = 45).
 int ajustar(int valor, int pct) {
     return (valor * pct + 50) / 100;
 }
@@ -37,6 +38,7 @@ const int HABITANTES_POR_COMIDA = 5;
 const int SOLDADOS_POR_COMIDA = 3;
 const int PRECO_GUARDAS = 20;
 
+// Retorno: quanta comida o reino gasta por turno (povo + guardas).
 int consumoDeComida(const Reino& reino) {
     return reino.populacao / HABITANTES_POR_COMIDA + reino.soldados / SOLDADOS_POR_COMIDA;
 }
@@ -60,25 +62,30 @@ string aplicarFome(Reino& reino) {
     return "Faltou comida! " + to_string(foramEmbora) + " pessoas foram embora.";
 }
 
+// Soma (ou tira, se negativo) gente da população, sem deixar ficar abaixo de zero.
 void mudarPopulacao(Reino& reino, int quanto) {
     reino.populacao += quanto;
     if (reino.populacao < 0) reino.populacao = 0;
 }
 
+// Retorno: a mensagem padrão de recurso insuficiente pra essa construção.
 string faltaRecurso(const char* nome) {
     return "Recursos insuficientes para " + string(nome) + ".";
 }
 
+// Retorno: true se "texto" começa com "inicio" (usado pra reconhecer o motivo de um bloqueio).
 bool comecaCom(const string& texto, const char* inicio) {
     return texto.rfind(inicio, 0) == 0;
 }
 
 }
 
+// Retorno: a economia em uso, por referência, pra o simulador e os testes poderem ajustá-la.
 Economia& economia() {
     return economiaAtual;
 }
 
+// Recalcula a tabela de prédios com os preços e a produção da economia atual.
 void aplicarEconomia() {
     int pct = economiaAtual.custoPct;
     for (int i = 0; i < TOTAL_TIPOS_EDIFICIO; i++) {
@@ -92,6 +99,7 @@ void aplicarEconomia() {
     modelosProntos = true;
 }
 
+// destino += valor × vezes, recurso por recurso. Com vezes = -1 vira subtração (pagar um custo).
 void somar(Recursos& destino, const Recursos& valor, int vezes) {
     destino.ouro += valor.ouro * vezes;
     destino.madeira += valor.madeira * vezes;
@@ -100,12 +108,15 @@ void somar(Recursos& destino, const Recursos& valor, int vezes) {
     destino.ferro += valor.ferro * vezes;
 }
 
+// Retorno: true se o estoque cobre o custo em todos os recursos.
 bool temRecursos(const Recursos& estoque, const Recursos& custo) {
     return estoque.ouro >= custo.ouro && estoque.madeira >= custo.madeira
         && estoque.pedra >= custo.pedra && estoque.comida >= custo.comida
         && estoque.ferro >= custo.ferro;
 }
 
+// Reino do começo da partida: libera o anterior, põe o estoque inicial,
+// abre o 3x3 do centro e compra a primeira mão.
 void iniciarReino(Reino& reino) {
     liberarReino(reino);
     aplicarEconomia();
@@ -132,6 +143,7 @@ void iniciarReino(Reino& reino) {
     comprarMao(reino.baralho);
 }
 
+// Libera tudo que o reino alocou: lista de prédios, pilha do Desfazer, fila e baralho.
 void liberarReino(Reino& reino) {
     liberarEdificios(reino.edificios);
     limparPilha(reino.historico);
@@ -139,20 +151,24 @@ void liberarReino(Reino& reino) {
     liberarBaralho(reino.baralho);
 }
 
+// Retorno: os dados do tipo de prédio (custo, produção, defesa...), já com a economia aplicada.
 const ModeloEdificio& modeloEdificio(int tipo) {
     if (!modelosProntos) aplicarEconomia();
     return MODELOS[tipo];
 }
 
+// Retorno: true se o lote está dentro da grade e já foi aberto (não é floresta).
 bool loteLiberado(const Reino& reino, int linha, int coluna) {
     if (linha < 0 || coluna < 0 || linha >= TAMANHO_GRADE || coluna >= TAMANHO_GRADE) return false;
     return reino.liberado[linha][coluna];
 }
 
+// Retorno: true pro lote do meio, que é do castelo.
 bool ehCastelo(int linha, int coluna) {
     return linha == 2 && coluna == 2;
 }
 
+// Percorre a lista somando a defesa de cada prédio (muralhas e torres) vezes o nível.
 int defesaDoReino(const Reino& reino) {
     int total = 0;
     for (NoEdificio* no = reino.edificios.primeiro; no != nullptr; no = no->proximo) {
@@ -176,6 +192,8 @@ static string motivoBloqueio(const Reino& reino, int tipo, int linha, int coluna
     return "";
 }
 
+// Confere se dá pra construir esse tipo nesse lote agora.
+// Retorno: texto vazio se pode, ou o motivo de não poder.
 string validarConstrucao(const Reino& reino, int tipo, int linha, int coluna) {
     return motivoBloqueio(reino, tipo, linha, coluna, true);
 }
@@ -195,6 +213,7 @@ static Edificio erguer(Reino& reino, int tipo, int linha, int coluna) {
     return novo;
 }
 
+// Empilha a jogada pro Desfazer: o tipo da ação, o prédio como estava e a carta usada (-1 se nenhuma).
 static void guardarNaPilha(Reino& reino, int tipo, const Edificio& edificio, int carta) {
     Acao acao;
     acao.tipo = tipo;
@@ -203,6 +222,8 @@ static void guardarNaPilha(Reino& reino, int tipo, const Edificio& edificio, int
     empilhar(reino.historico, acao);
 }
 
+// Constrói direto, sem carta (usado nos testes e no simulador).
+// Retorno: a mensagem de sucesso ou o motivo do bloqueio.
 string construirEdificio(Reino& reino, int tipo, int linha, int coluna) {
     string problema = validarConstrucao(reino, tipo, linha, coluna);
     if (!problema.empty()) return problema;
@@ -241,6 +262,7 @@ Recursos custoDeSubir(int tipo, int nivelAtual) {
             ajustar(custo.comida, pct), ajustar(custo.ferro, pct)};
 }
 
+// Retorno: quanto custa trocar a mão agora. Fica mais caro a cada troca no mesmo turno.
 int precoDaTroca(const Reino& reino) {
     return 15 + 10 * reino.trocasDeMao;
 }
@@ -258,6 +280,8 @@ string trocarMao(Reino& reino) {
     return "Mão nova por " + to_string(preco) + " de ouro.";
 }
 
+// Carta de prédio jogada em cima de um igual: sobe um nível, até o máximo.
+// indice: posição da carta na mão. Retorno: a mensagem pro jogador.
 static string subirNivel(Reino& reino, int indice, int carta, const Edificio& atual) {
     const ModeloEdificio& modelo = MODELOS[atual.tipo];
     if (atual.nivel >= NIVEL_MAXIMO) return string(modelo.nome) + " já está no nível máximo.";
@@ -273,6 +297,8 @@ static string subirNivel(Reino& reino, int indice, int carta, const Edificio& at
     return string(modelo.nome) + " subiu pro nível " + to_string(edificio->nivel) + "!";
 }
 
+// Carta de prédio ou tropa: sobe o nível se o lote tem um igual, constrói se está livre,
+// ou vira ordem na fila se só faltou recurso. Retorno: a mensagem pro jogador.
 static string jogarPredio(Reino& reino, int indice, int carta, int linha, int coluna) {
     int tipo = modeloCarta(carta).alvo;
     const Edificio* ocupante = buscarEdificioNoLote(reino.edificios, linha, coluna);
@@ -290,6 +316,8 @@ static string jogarPredio(Reino& reino, int indice, int carta, int linha, int co
     return "Nova construção: " + string(MODELOS[tipo].nome) + ".";
 }
 
+// Carta de encanto em cima de um prédio. Lâminas, Armaduras e Estandarte só valem
+// em prédio de tropa; a Bênção Real sobe o nível de qualquer um. Retorno: a mensagem.
 static string jogarEncanto(Reino& reino, int indice, int carta, int linha, int coluna) {
     const ModeloCarta& modelo = modeloCarta(carta);
     const Edificio* alvo = buscarEdificioNoLote(reino.edificios, linha, coluna);
@@ -315,11 +343,13 @@ static string jogarEncanto(Reino& reino, int indice, int carta, int linha, int c
     return string(modelo.nome) + " em " + MODELOS[edificio->tipo].nome + ".";
 }
 
+// Retorno: true se algum dos 4 vizinhos do lote já está aberto.
 static bool vizinhoAberto(const Reino& reino, int linha, int coluna) {
     return loteLiberado(reino, linha - 1, coluna) || loteLiberado(reino, linha + 1, coluna)
         || loteLiberado(reino, linha, coluna - 1) || loteLiberado(reino, linha, coluna + 1);
 }
 
+// Carta de Expansão: abre um lote de floresta colado no reino. Retorno: a mensagem.
 static string jogarExpansao(Reino& reino, int indice, int carta, int linha, int coluna) {
     const ModeloCarta& modelo = modeloCarta(carta);
     if (linha < 0 || coluna < 0 || linha >= TAMANHO_GRADE || coluna >= TAMANHO_GRADE) return "Fora do mapa.";
@@ -337,6 +367,7 @@ static string jogarExpansao(Reino& reino, int indice, int carta, int linha, int 
     return "Os lenhadores abriram um lote novo.";
 }
 
+// Carta de efeito na hora (Caravana): entra o recurso e a jogada vai pra pilha.
 static string jogarInstante(Reino& reino, int indice, int carta) {
     guardarNaPilha(reino, USOU_CARTA, Edificio(), carta);
     somar(reino.estoque, GANHO_CARAVANA);
@@ -344,6 +375,8 @@ static string jogarInstante(Reino& reino, int indice, int carta) {
     return "Chegou uma caravana: +50 ouro, +20 madeira, +10 pedra.";
 }
 
+// Joga a carta da posição indiceMao no lote (linha, coluna), de acordo com o tipo dela.
+// Retorno: a mensagem pro jogador (sucesso ou motivo do erro).
 string jogarCarta(Reino& reino, int indiceMao, int linha, int coluna) {
     if (indiceMao < 0 || indiceMao >= reino.baralho.naMao) return "Escolha uma carta lá embaixo.";
     int carta = reino.baralho.mao[indiceMao];
@@ -413,6 +446,8 @@ static string reverterAcao(Reino& reino, const Acao& acao) {
     }
 }
 
+// Botão Desfazer: tira a última jogada da pilha, faz o caminho contrário e devolve a carta.
+// Retorno: a mensagem pro jogador, ou o motivo de não dar pra desfazer.
 string desfazerUltimaAcao(Reino& reino) {
     const Acao* topo = topoDaPilha(reino.historico);
     if (topo == nullptr) return "Nada pra desfazer neste turno.";
@@ -426,6 +461,8 @@ string desfazerUltimaAcao(Reino& reino) {
     return texto;
 }
 
+// Coloca a construção no fim da fila pra ser feita quando tiver recurso.
+// Retorno: a posição na fila, ou o motivo de não dar pra agendar.
 string agendarConstrucao(Reino& reino, int tipo, int linha, int coluna) {
     string problema = motivoBloqueio(reino, tipo, linha, coluna, true);
     if (!problema.empty() && !comecaCom(problema, "Recursos insuficientes")) return problema;
@@ -457,6 +494,7 @@ string processarFila(Reino& reino) {
     return resumo.empty() ? "" : "Da fila: " + resumo + ".";
 }
 
+// Transforma 20 de ouro em 2 guardas do castelo (precisa de Quartel e de gente sobrando).
 string recrutarGuardas(Reino& reino) {
     if (contarEdificiosDoTipo(reino.edificios, QUARTEL) == 0) return "Precisa de um Quartel pra recrutar.";
     if (reino.estoque.ouro < PRECO_GUARDAS) return "Recrutar 2 guardas custa 20 de ouro.";
@@ -466,6 +504,8 @@ string recrutarGuardas(Reino& reino) {
     return "2 guardas novos no castelo.";
 }
 
+// Gasta os cristais e invoca um herói. heroi volta com o id sorteado (-1 se não deu).
+// Retorno: a mensagem com o nome e a raridade.
 string invocar(Reino& reino, int& heroi) {
     heroi = -1;
     if (reino.cristais < CUSTO_INVOCACAO) {
@@ -479,10 +519,12 @@ string invocar(Reino& reino, int& heroi) {
     return estrelas > 1 ? texto + " subiu pra " + to_string(estrelas) + " estrelas!" : texto + " chegou!";
 }
 
+// Retorno: ataque extra dos heróis pelas armas guardadas no arsenal (com limite).
 int bonusAtaqueHerois(const Reino& reino) {
     return reino.armas < MAX_ARSENAL ? reino.armas : MAX_ARSENAL;
 }
 
+// Retorno: vida extra dos heróis pelas armaduras do arsenal (3 por armadura, com limite).
 int bonusVidaHerois(const Reino& reino) {
     return 3 * (reino.armaduras < MAX_ARSENAL ? reino.armaduras : MAX_ARSENAL);
 }
@@ -503,6 +545,8 @@ Recursos previsaoDoTurno(const Reino& reino) {
     return total;
 }
 
+// Virada do turno no reino: aplica produção e consumo UMA vez, limpa a pilha do
+// Desfazer e cuida da fome. Retorno: o resumo do que entrou e saiu.
 string processarTurnoReino(Reino& reino) {
     reino.trocasDeMao = 0;
     Recursos mudanca = previsaoDoTurno(reino);

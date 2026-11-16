@@ -30,10 +30,12 @@ const int MAX_CARTAS_BARALHO = 128;
 
 }
 
+// Retorno: os dados fixos da carta (nome, tipo, raridade, custo...).
 const ModeloCarta& modeloCarta(int id) {
     return CARTAS[id];
 }
 
+// Retorno: quanto a carta custa pra jogar. Prédio e tropa custam o mesmo que o edifício.
 Recursos custoDaCarta(int id) {
     const ModeloCarta& carta = CARTAS[id];
     if (carta.tipo == CARTA_PREDIO || carta.tipo == CARTA_TROPA) {
@@ -42,6 +44,7 @@ Recursos custoDaCarta(int id) {
     return carta.custo;
 }
 
+// Retorno: o nome do tipo da carta pra mostrar na tela.
 const char* nomeTipoCarta(int tipo) {
     switch (tipo) {
         case CARTA_PREDIO: return "Prédio";
@@ -52,6 +55,7 @@ const char* nomeTipoCarta(int tipo) {
     }
 }
 
+// Monta o baralho inicial (mais cópias das cartas comuns) e embaralha o monte.
 void montarBaralho(Baralho& baralho) {
     liberarBaralho(baralho);
     for (int id = 0; id < TOTAL_CARTAS; id++) {
@@ -77,6 +81,8 @@ void embaralhar(PilhaCartas& pilha) {
     for (int i = 0; i < total; i++) colocarCarta(pilha, cartas[i]);
 }
 
+// Completa a mão até 5 cartas tirando do topo do monte. Se o monte acabar,
+// o descarte volta pra ele e é embaralhado de novo.
 void comprarMao(Baralho& baralho) {
     while (baralho.naMao < TAMANHO_MAO) {
         if (baralho.monte.tamanho == 0) {
@@ -90,6 +96,8 @@ void comprarMao(Baralho& baralho) {
     }
 }
 
+// Tira da mão a carta da posição indice e guarda nas "usadas" (pro Desfazer devolver).
+// Retorno: o id da carta, ou -1 se o índice é inválido.
 int usarCarta(Baralho& baralho, int indice) {
     if (indice < 0 || indice >= baralho.naMao) return -1;
     int carta = baralho.mao[indice];
@@ -99,6 +107,8 @@ int usarCarta(Baralho& baralho, int indice) {
     return carta;
 }
 
+// Desfazer: devolve pra mão a carta usada por último com esse id.
+// Retorno: false se a mão está cheia ou a carta não estava nas usadas.
 bool devolverCarta(Baralho& baralho, int carta) {
     if (baralho.naMao >= TAMANHO_MAO) return false;
     for (int i = baralho.totalUsadas - 1; i >= 0; i--) {
@@ -111,11 +121,13 @@ bool devolverCarta(Baralho& baralho, int carta) {
     return false;
 }
 
+// Joga as cartas da mão no descarte (usado ao trocar a mão).
 void descartarMao(Baralho& baralho) {
     for (int i = 0; i < baralho.naMao; i++) colocarCarta(baralho.descarte, baralho.mao[i]);
     baralho.naMao = 0;
 }
 
+// Fim do turno: mão e cartas usadas vão todas pro descarte.
 void descartarTudo(Baralho& baralho) {
     for (int i = 0; i < baralho.naMao; i++) colocarCarta(baralho.descarte, baralho.mao[i]);
     for (int i = 0; i < baralho.totalUsadas; i++) colocarCarta(baralho.descarte, baralho.usadas[i]);
@@ -123,6 +135,8 @@ void descartarTudo(Baralho& baralho) {
     baralho.totalUsadas = 0;
 }
 
+// Sorteia 3 cartas diferentes pra recompensa, com chance maior pras comuns.
+// opcoes: vetor que volta preenchido com os 3 ids.
 void sortearRecompensa(int opcoes[3]) {
     for (int i = 0; i < 3; i++) {
         bool repetida = true;
@@ -138,15 +152,18 @@ void sortearRecompensa(int opcoes[3]) {
     }
 }
 
+// Coloca uma carta nova no monte (recompensa), respeitando o limite do baralho.
 void ganharCarta(Baralho& baralho, int carta) {
     if (carta < 0 || carta >= TOTAL_CARTAS || totalDeCartas(baralho) >= MAX_CARTAS_BARALHO) return;
     colocarCarta(baralho.monte, carta);
 }
 
+// Retorno: quantas cartas o jogador tem ao todo (monte + descarte + mão + usadas).
 int totalDeCartas(const Baralho& baralho) {
     return baralho.monte.tamanho + baralho.descarte.tamanho + baralho.naMao + baralho.totalUsadas;
 }
 
+// Apaga as pilhas do monte e do descarte e zera a mão.
 void liberarBaralho(Baralho& baralho) {
     limparCartas(baralho.monte);
     limparCartas(baralho.descarte);

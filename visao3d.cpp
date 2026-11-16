@@ -39,11 +39,13 @@ Vector3 noMundo(float x, float y, float altura) {
     return {(x - mapa.largura / 2.0f) / PIXEL, altura, (y - mapa.altura / 2.0f) / PIXEL};
 }
 
+// Retorno: o retângulo do planalto (a grade de lotes com uma borda).
 Rectangle retanguloPlanalto() {
     float lado = mapa.grade * mapa.lote + 6.0f;
     return {mapa.gradeX - 3.0f, mapa.gradeY - 3.0f, lado, lado};
 }
 
+// Retorno: a altura do chão no ponto: em cima do planalto ou no nível do campo.
 float alturaDoChao(float x, float y) {
     return CheckCollisionPointRec({x, y}, retanguloPlanalto()) ? ALTURA_PLANALTO : 0.0f;
 }
@@ -55,17 +57,20 @@ RenderTexture2D assar(int largura, int altura) {
     return rt;
 }
 
+// Começa a desenhar dentro de uma textura ("assar" um sprite 2D pra usar no 3D).
 void comecarAssado(RenderTexture2D& rt) {
     BeginTextureMode(rt);
     ClearBackground(BLANK);
     comecarZoom();
 }
 
+// Termina o desenho na textura.
 void terminarAssado() {
     terminarZoom();
     EndTextureMode();
 }
 
+// Pré-desenha as 8 poses da galinha (2 lados x 2 passos x cabeça alta/baixa) em texturas.
 void assarGalinhas() {
     for (int d = 0; d < 2; d++)
         for (int p = 0; p < 2; p++)
@@ -137,6 +142,7 @@ void desenharArvoresDoCenario(const Cenario& c, float tempo) {
     }
 }
 
+// Árvores 3D nos lotes ainda fechados. Usa a mesma semente do 2D, então as árvores batem.
 void desenharFlorestaDosLotes(const Reino& reino, float tempo) {
     for (int l = 0; l < mapa.grade; l++) {
         for (int c = 0; c < mapa.grade; c++) {
@@ -153,6 +159,7 @@ void desenharFlorestaDosLotes(const Reino& reino, float tempo) {
     }
 }
 
+// Retorno: o ponto da tela 2D onde fica o pé do prédio no lote.
 Vector2 peDoLote(int linha, int coluna) {
     return {mapa.gradeX + coluna * mapa.lote + 11.0f, mapa.gradeY + linha * mapa.lote + 17.0f};
 }
@@ -162,6 +169,7 @@ Vector3 centroDoLote(int linha, int coluna) {
     return noMundo(mapa.gradeX + coluna * mapa.lote + 11.0f, mapa.gradeY + linha * mapa.lote + 11.0f, ALTURA_PLANALTO);
 }
 
+// Castelo no meio e cada edifício da lista no lote dele, com a animação de crescer.
 void desenharPredios(const Reino& reino, const Previa3D& previa, float tempo) {
     desenharCastelo3D(centroDoLote(2, 2), tempo);
     for (NoEdificio* no = reino.edificios.primeiro; no != nullptr; no = no->proximo) {
@@ -170,6 +178,7 @@ void desenharPredios(const Reino& reino, const Previa3D& previa, float tempo) {
     }
 }
 
+// Desenha as galinhas como sprites virados pra câmera.
 void desenharGalinhas3D(float tempo) {
     EstadoGalinha galinhas[10];
     int total = obterGalinhas(galinhas, 10, tempo);
@@ -231,6 +240,7 @@ void desenharNiveis(const Reino& reino) {
     }
 }
 
+// Calcula a posição da câmera orbitando o centro do planalto (giro, inclinação e distância).
 void posicionarCamera() {
     Rectangle p = retanguloPlanalto();
     camera.target = noMundo(p.x + p.width / 2, p.y + p.height / 2 + 6, ALTURA_PLANALTO);
@@ -242,6 +252,7 @@ void posicionarCamera() {
 
 }
 
+// Prepara o 3D: guarda as medidas do mapa, cria a textura do chão, o shader e as galinhas.
 void iniciarVisao3D(const InfoMapa& info) {
     mapa = info;
     chao = LoadRenderTexture(mapa.largura * FATOR, mapa.altura * FATOR);
@@ -254,6 +265,7 @@ void iniciarVisao3D(const InfoMapa& info) {
     assarGalinhas();
 }
 
+// Descarrega as texturas e o shader do 3D.
 void liberarVisao3D() {
     for (auto& d : texGalinha)
         for (auto& p : d)
@@ -262,10 +274,12 @@ void liberarVisao3D() {
     UnloadShader(descarte);
 }
 
+// Retorno: a textura onde o chão 2D é desenhado antes de virar o piso do 3D.
 RenderTexture2D& texturaDoChao() {
     return chao;
 }
 
+// Volta a câmera pra posição inicial.
 void resetarCamera3D() {
     giro = 0.0f;
     inclinacao = 0.8f;
@@ -287,6 +301,8 @@ void atualizarCamera3D(float dt) {
     posicionarCamera();
 }
 
+// Lança um raio do mouse até o chão do planalto.
+// Retorno: true se acertou; ponto volta com a posição equivalente no mapa 2D.
 bool mouseNoMapa3D(Vector2 mouse, Vector2& ponto) {
     Ray raio = GetScreenToWorldRayEx(mouse, camera, mapa.largura, mapa.altura);
     if (raio.direction.y >= 0) return false;
@@ -297,6 +313,7 @@ bool mouseNoMapa3D(Vector2 mouse, Vector2& ponto) {
     return true;
 }
 
+// Desenha a vista 3D inteira: céu, chão, árvores, prédios, fumaça e galinhas.
 void desenharCena3D(const Cenario& cenario, const Reino& reino, const Previa3D& previa, float tempo) {
     ClearBackground(CEU);                    // limpa a profundidade do quadro anterior também
     DrawRectangleGradientV(0, 0, mapa.largura, mapa.altura, CEU, CEU_HORIZONTE);

@@ -25,6 +25,7 @@ static void telhas(int x, int y, int s, float a, float b, float w, float h) {
     }
 }
 
+// Tijolos em fileiras desencontradas na área (a, b, w, h) do sprite.
 static void tijolos(int x, int y, int s, float a, float b, float w, float h) {
     int fileira = 0;
     for (float l = 2; l <= h; l += 2, fileira++) {
@@ -35,12 +36,14 @@ static void tijolos(int x, int y, int s, float a, float b, float w, float h) {
     PX(a + w - 1, b, 1, h, RISCO);          // lado da sombra
 }
 
+// Tábuas verticais com um pouco de luz em cima.
 static void tabuas(int x, int y, int s, float a, float b, float w, float h) {
     for (float c = 2; c < w; c += 2) PX(a + c - 0.5f, b, 0.5f, h, RISCO);
     PX(a, b, w, 0.5f, LUZ);
     PX(a + w - 1, b, 1, h, RISCO);
 }
 
+// Janela com moldura e cruz no meio.
 static void janela(int x, int y, int s, float a, float b, float w, float h) {
     PX(a - 0.5f, b - 0.5f, w + 1, 0.5f, RISCO_FORTE);
     PX(a - 0.5f, b + h, w + 1, 0.5f, RISCO_FORTE);
@@ -51,6 +54,7 @@ static void janela(int x, int y, int s, float a, float b, float w, float h) {
     PX(a, b, 0.5f, 0.5f, Color{255, 255, 240, 200});
 }
 
+// Porta de tábuas com maçaneta dourada.
 static void porta(int x, int y, int s, float a, float b, float w, float h) {
     PX(a, b, w, 0.5f, RISCO_FORTE);
     for (float c = 1; c < w; c += 1) PX(a + c - 0.25f, b + 0.5f, 0.5f, h - 0.5f, RISCO);
@@ -63,12 +67,14 @@ static void porta(int x, int y, int s, float a, float b, float w, float h) {
 #define JANELA_FINA(a, b, w, h) janela(x, y, s, a, b, w, h)
 #define PORTA_FINA(a, b, w, h) porta(x, y, s, a, b, w, h)
 
+// Retorno: 0 ou 1 alternando no tempo (bandeira, cristal flutuando...).
 static int piscada(float velocidade) {
     return static_cast<int>(GetTime() * velocidade) % 2;
 }
 
 static void detalhesDoCastelo(int x, int y, int s);
 
+// Sprite do castelo. x, y: canto de cima; s: escala (cada unidade vira s pixels).
 void desenharCastelo(int x, int y, int s) {
     PX(3, 10, 16, 11, PEDRA);
     for (int i = 3; i < 19; i += 3) PX(i, 9, 2, 1, PEDRA);
@@ -114,6 +120,7 @@ static void detalhesDoCastelo(int x, int y, int s) {
     PX(1, 20.5f, 20, 0.5f, RISCO_FORTE);
 }
 
+// Sprite da fazenda (mesmos parâmetros dos outros: posição e escala).
 void desenharFazenda(int x, int y, int s) {
     PX(2, 4, 18, 15, TERRA);
     for (int i = 6; i < 19; i += 4) {
@@ -136,6 +143,7 @@ void desenharFazenda(int x, int y, int s) {
     PX(19.5f, 4, 0.5f, 15, RISCO);
 }
 
+// Sprite da serraria.
 void desenharSerraria(int x, int y, int s) {
     PX(11, 1, 2, 4, PEDRA);                  // chaminé
     PX(3, 9, 12, 9, MADEIRA);
@@ -161,6 +169,7 @@ void desenharSerraria(int x, int y, int s) {
     PX(2, 18, 13, 0.5f, RISCO_FORTE);
 }
 
+// Sprite do quartel.
 void desenharQuartel(int x, int y, int s) {
     PX(2, 9, 16, 10, PERGAMINHO);
     PX(1, 6, 18, 3, TELHADO_VERM);
@@ -181,6 +190,7 @@ void desenharQuartel(int x, int y, int s) {
     PX(9, 11.5f, 2, 0.5f, DOURADO);
 }
 
+// Sprite da muralha.
 void desenharMuralha(int x, int y, int s) {
     PX(1, 8, 20, 11, PEDRA);
     for (int i = 1; i < 21; i += 4) PX(i, 6, 2, 2, PEDRA);
@@ -200,6 +210,7 @@ void desenharMuralha(int x, int y, int s) {
     PX(9, 18.5f, 0.5f, 0.5f, FOLHA_CLARA);
 }
 
+// Sprite da oficina.
 void desenharOficina(int x, int y, int s) {
     PX(3, 9, 13, 10, PEDRA);
     PX(2, 6, 15, 3, MADEIRA_ESCURA);
@@ -228,18 +239,21 @@ void iconeOuro(int x, int y, int s) {
     PX(2, 2, 2, 2, BRILHO_OURO);
 }
 
+// Ícone de tora de madeira.
 void iconeMadeira(int x, int y, int s) {
     PX(0, 2, 6, 3, MADEIRA);
     PX(0, 4, 6, 1, MADEIRA_ESCURA);
     PX(6, 2, 1, 3, PERGAMINHO);
 }
 
+// Ícone de pedra.
 void iconePedra(int x, int y, int s) {
     PX(1, 1, 5, 5, PEDRA);
     PX(0, 3, 7, 3, PEDRA);
     PX(2, 2, 2, 1, PEDRA_CLARA);
 }
 
+// Ícone de comida (maçã).
 void iconeComida(int x, int y, int s) {
     PX(1, 2, 5, 5, TELHADO_VERM);
     PX(0, 3, 7, 3, TELHADO_VERM);
@@ -247,23 +261,27 @@ void iconeComida(int x, int y, int s) {
     PX(3, 0, 2, 2, GRAMA_CLARA);
 }
 
+// Ícone de barra de ferro.
 void iconeFerro(int x, int y, int s) {
     PX(0, 3, 7, 3, PEDRA);
     PX(1, 2, 5, 1, PEDRA_CLARA);
     PX(1, 3, 5, 1, PEDRA_CLARA);
 }
 
+// Ícone de pessoa (população).
 void iconePovo(int x, int y, int s) {
     PX(2, 0, 3, 3, PERGAMINHO);
     PX(1, 3, 5, 4, TELHADO_AZUL);
 }
 
+// Ícone de espada (soldados).
 void iconeSoldado(int x, int y, int s) {
     PX(3, 0, 1, 5, PEDRA_CLARA);
     PX(1, 4, 5, 1, DOURADO);
     PX(3, 5, 1, 2, MADEIRA_ESCURA);
 }
 
+// Ícone de coroa.
 void iconeCoroa(int x, int y, int s) {
     PX(0, 3, 7, 3, DOURADO);
     PX(0, 1, 1, 2, DOURADO);
@@ -273,6 +291,7 @@ void iconeCoroa(int x, int y, int s) {
     PX(0, 6, 7, 1, DOURADO_ESCURO);
 }
 
+// Ícone de mapa dobrado (expedição).
 void iconeMapa(int x, int y, int s) {
     PX(0, 1, 7, 5, PERGAMINHO);
     PX(2, 1, 1, 5, PERGAMINHO_ESC);
@@ -282,6 +301,7 @@ void iconeMapa(int x, int y, int s) {
     PX(5, 2, 1, 1, TELHADO_VERM);
 }
 
+// Ícone de livro (catálogo/ajuda).
 void iconeLivro(int x, int y, int s) {
     PX(1, 0, 6, 7, TELHADO_VERM);
     PX(1, 0, 1, 7, VERMELHO_ESC);
@@ -289,6 +309,7 @@ void iconeLivro(int x, int y, int s) {
     PX(2, 6, 5, 1, PERGAMINHO);
 }
 
+// Ícone de baú.
 void iconeBau(int x, int y, int s) {
     PX(0, 1, 7, 2, MADEIRA_ESCURA);
     PX(0, 3, 7, 4, MADEIRA);
@@ -296,6 +317,7 @@ void iconeBau(int x, int y, int s) {
     PX(3, 3, 1, 2, DOURADO);
 }
 
+// Ícone de porta.
 void iconePorta(int x, int y, int s) {
     PX(2, 0, 3, 1, MADEIRA);
     PX(1, 1, 5, 6, MADEIRA);
@@ -303,6 +325,7 @@ void iconePorta(int x, int y, int s) {
     PX(4, 4, 1, 1, DOURADO);
 }
 
+// Ícone de ampulheta (fim do turno).
 void iconeAmpulheta(int x, int y, int s) {
     PX(0, 0, 7, 1, MADEIRA_ESCURA);
     PX(0, 6, 7, 1, MADEIRA_ESCURA);
@@ -366,6 +389,7 @@ void desenharMina(int x, int y, int s) {
     PX(15, 17, 5, 0.5f, MADEIRA);
 }
 
+// Sprite do mercado, com toldo listrado.
 void desenharMercado(int x, int y, int s) {
     PX(3, 8, 1, 11, MADEIRA_ESCURA);
     PX(18, 8, 1, 11, MADEIRA_ESCURA);
@@ -396,6 +420,7 @@ void desenharMercado(int x, int y, int s) {
     PX(7.5f, 16.5f, 3, 0.5f, MADEIRA_ESCURA);
 }
 
+// Sprite da casa.
 void desenharCasa(int x, int y, int s) {
     PX(14, 2, 2, 4, PEDRA);                  // chaminé
     PX(5, 10, 12, 9, PERGAMINHO);
@@ -427,6 +452,7 @@ void desenharCasa(int x, int y, int s) {
     PX(5, 19, 12, 0.5f, RISCO_FORTE);
 }
 
+// Sprite da torre, com bandeirinha piscando.
 void desenharTorre(int x, int y, int s) {
     PX(10, -3, 1, 7, CONTORNO);              // mastro
     PX(11, -3, 3, 2, TELHADO_VERM);
@@ -451,6 +477,7 @@ void desenharTorre(int x, int y, int s) {
     PX(8, 15, 1, 1, FOLHA);
 }
 
+// Sprite da arquearia.
 void desenharArquearia(int x, int y, int s) {
     PX(2, 10, 9, 8, MADEIRA);
     PX(1, 8, 11, 2, FOLHA);
@@ -483,6 +510,7 @@ void desenharArquearia(int x, int y, int s) {
     PX(20.5f, 8.5f, 0.5f, 1.5f, TEXTO_CLARO);
 }
 
+// Sprite do estábulo.
 void desenharEstabulo(int x, int y, int s) {
     PX(3, 9, 16, 10, TELHADO_VERM);
     PX(3, 17, 16, 2, VERMELHO_ESC);
@@ -516,6 +544,7 @@ void desenharEstabulo(int x, int y, int s) {
     JANELA_FINA(16, 12, 2, 2);
 }
 
+// Sprite da torre arcana com o cristal flutuando.
 void desenharTorreArcana(int x, int y, int s) {
     int flutua = piscada(1.5f);
     PX(10, -5 - flutua, 2, 2, CRISTAL);      // cristal flutuando
@@ -559,6 +588,7 @@ void artLaminas(int x, int y, int s) {
     PX(18, 8, 1, 1, BRILHO_OURO);
 }
 
+// Arte da carta de armaduras.
 void artArmaduras(int x, int y, int s) {
     PX(4, 5, 4, 4, PEDRA);                   // ombreiras
     PX(14, 5, 4, 4, PEDRA);
@@ -573,6 +603,7 @@ void artArmaduras(int x, int y, int s) {
     PX(7, 17, 8, 2, PEDRA);
 }
 
+// Arte da carta do estandarte.
 void artEstandarte(int x, int y, int s) {
     PX(5, 1, 3, 1, DOURADO);
     PX(6, 2, 1, 18, MADEIRA_ESCURA);
@@ -586,6 +617,7 @@ void artEstandarte(int x, int y, int s) {
     PX(7, 3, 10 + balanco, 1, AZUL_CLARO);
 }
 
+// Arte da carta de bênção.
 void artBencao(int x, int y, int s) {
     PX(10, 0, 2, 4, BRILHO_OURO);            // raios
     PX(3, 3, 2, 2, BRILHO_OURO);
@@ -603,6 +635,7 @@ void artBencao(int x, int y, int s) {
     if (piscada(2.5f)) PX(16, 16, 1, 1, TEXTO_CLARO);
 }
 
+// Arte da carta de expansão (terreno novo).
 void artExpansao(int x, int y, int s) {
     PX(14, 4, 3, 2, FOLHA);                  // pinheiro ao fundo
     PX(13, 6, 5, 3, FOLHA);
@@ -618,6 +651,7 @@ void artExpansao(int x, int y, int s) {
     PX(1, 18, 20, 1, GRAMA_ESCURA);
 }
 
+// Arte da carta da caravana.
 void artCaravana(int x, int y, int s) {
     PX(5, 4, 10, 1, PERGAMINHO);             // lona
     PX(4, 5, 12, 5, PERGAMINHO);
@@ -646,6 +680,7 @@ void iconeCoracao(int x, int y, int s) {
     PX(1, 1, 1, 1, CORACAO_CLARO);
 }
 
+// Ícone de cristal.
 void iconeCristal(int x, int y, int s) {
     PX(2, 0, 3, 1, CRISTAL);
     PX(1, 1, 5, 2, CRISTAL);
@@ -654,6 +689,7 @@ void iconeCristal(int x, int y, int s) {
     PX(2, 1, 1, 1, TEXTO_CLARO);
 }
 
+// Ícone de duas espadas cruzadas.
 void iconeEspadas(int x, int y, int s) {
     for (int i = 0; i < 6; i++) {
         PX(i, i, 1, 1, PEDRA_CLARA);
@@ -663,6 +699,7 @@ void iconeEspadas(int x, int y, int s) {
     PX(5, 6, 2, 1, DOURADO);
 }
 
+// Ícone de estrela.
 void iconeEstrela(int x, int y, int s) {
     PX(3, 0, 1, 2, DOURADO);
     PX(0, 2, 7, 1, DOURADO);
@@ -674,6 +711,7 @@ void iconeEstrela(int x, int y, int s) {
     PX(3, 2, 1, 1, BRILHO_OURO);
 }
 
+// Retorno: a função de sprite de cada tipo de edifício (mesma ordem do enum).
 Desenho desenhoDoEdificio(int tipo) {
     const Desenho desenhos[] = {desenharFazenda, desenharSerraria, desenharQuartel, desenharMuralha,
                                 desenharOficina, desenharMina, desenharMercado, desenharCasa,
@@ -681,6 +719,7 @@ Desenho desenhoDoEdificio(int tipo) {
     return desenhos[tipo];
 }
 
+// Desenha qualquer sprite com contorno escuro: silhueta deslocada e depois as cores.
 void desenharComContorno(Desenho desenho, int x, int y, int s) {
     for (int passo = 0; passo < PASSOS_CONTORNO; passo++) {
         passoDoContorno(passo, CONTORNO);

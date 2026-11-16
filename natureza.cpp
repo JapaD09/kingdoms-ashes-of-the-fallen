@@ -36,11 +36,14 @@ const Color CORES_FLOR[] = {
 // sorteio com semente fixa: o cenário sai igual toda vez que abre o jogo
 unsigned estado = 1;
 
+// Sorteio próprio do cenário (gerador congruente linear). Fica separado do sorteio do jogo
+// pra mesma semente sempre gerar o mesmo cenário. Retorno: número entre minimo e maximo.
 int sortear(int minimo, int maximo) {
     estado = estado * 1103515245u + 12345u;
     return minimo + static_cast<int>((estado >> 16) % static_cast<unsigned>(maximo - minimo + 1));
 }
 
+// Atalho pro ret(), só pra deixar os desenhos de árvore mais curtos.
 void px(float x, float y, float w, float h, Color cor) {
     ret(x, y, w, h, cor);
 }
@@ -90,6 +93,7 @@ void copaRedonda(int cx, int cy, int raio, const TomFolha& t, float balanco) {
     }
 }
 
+// Carvalho: tronco grosso e copa redonda. balanco mexe a copa com o vento.
 void carvalho(int x, int y, int tamanho, const TomFolha& t, float balanco) {
     int raio = 3 + tamanho;
     int tronco = 2 + tamanho / 2;
@@ -99,6 +103,7 @@ void carvalho(int x, int y, int tamanho, const TomFolha& t, float balanco) {
     copaRedonda(x, y - tronco - raio, raio, t, balanco);
 }
 
+// Bétula: tronco fino e claro com copa pequena.
 void betula(int x, int y, int tamanho, const TomFolha& t, float balanco) {
     int tronco = 4 + tamanho * 2;
     int raio = 2 + tamanho;
@@ -108,6 +113,7 @@ void betula(int x, int y, int tamanho, const TomFolha& t, float balanco) {
     copaRedonda(x, y - tronco - raio + 1, raio, t, balanco);
 }
 
+// Arbusto baixinho, às vezes com frutinhas.
 void arbusto(int x, int y, int tamanho, const TomFolha& t, float balanco) {
     int raio = 2 + tamanho;
     copaRedonda(x, y - raio, raio, t, balanco * 0.4f);
@@ -117,6 +123,7 @@ void arbusto(int x, int y, int tamanho, const TomFolha& t, float balanco) {
     }
 }
 
+// Árvore seca, só tronco e galhos.
 void seca(int x, int y, int tamanho) {
     int altura = 6 + tamanho * 2;
     px(x - 2, y, 5, 1, Fade(CONTORNO, 0.2f));
@@ -139,6 +146,7 @@ void flores(int x, int y, int tamanho, int tom) {
     }
 }
 
+// Pedrinha no chão com o topo mais claro.
 void pedrinha(int x, int y, int tamanho) {
     int w = 2 + tamanho, h = 1 + tamanho / 2;
     px(x, y - h, w, h + 1, PEDRA);
@@ -146,12 +154,14 @@ void pedrinha(int x, int y, int tamanho) {
     px(x + 1, y + 1, w, 1, Fade(CONTORNO, 0.25f));
 }
 
+// Cogumelo vermelho com pintinhas.
 void cogumelo(int x, int y) {
     px(x, y - 1, 1, 2, FLOR_BRANCA);
     px(x - 1, y - 2, 3, 1, TELHADO_VERM);
     px(x, y - 2, 1, 1, FLOR_BRANCA);
 }
 
+// Tufinho de grama que balança.
 void tufo(int x, int y, float balanco) {
     int d = balanco > 0.6f ? 1 : 0;
     px(x, y - 1, 1, 1, CAMPO_CLARO);
@@ -159,12 +169,14 @@ void tufo(int x, int y, float balanco) {
     px(x + 2, y - 1, 1, 1, CAMPO_CLARO);
 }
 
+// Toco de árvore cortada.
 void toco(int x, int y) {
     px(x, y - 2, 3, 3, TRONCO);
     px(x, y - 2, 3, 1, MADEIRA);
     px(x + 1, y - 2, 1, 1, PERGAMINHO_ESC);
 }
 
+// Mancha de grama mais clara ou mais escura pra o campo não ficar liso.
 void mancha(int x, int y, int tamanho, int tom) {
     Color cor = tom % 2 ? CAMPO_ESCURO : CAMPO_CLARO;
     int w = 10 + tamanho * 8, h = 3 + tamanho * 2;
@@ -178,6 +190,7 @@ float riachoEm(const Cenario& c, int y) {
     return c.riachoX + sinf(y * 0.045f) * 5 + sinf(y * 0.13f) * 1.5f;
 }
 
+// Riacho descendo a tela com brilhos andando (se o cenário tiver um).
 void desenharRiacho(const Cenario& c, float tempo) {
     if (c.riachoX < 0) return;
     int brilho = static_cast<int>(tempo * 14);
@@ -204,11 +217,13 @@ bool lugarLivre(const Cenario& c, Rectangle proibido, int x, int y) {
     return c.riachoX < 0 || fabsf(x - riachoEm(c, y)) > 6;
 }
 
+// Guarda um objeto no cenário com uma fase aleatória pro vento, se ainda couber.
 void adicionar(Cenario& c, int x, int y, int tipo, int tamanho, int tom) {
     if (c.total >= MAX_OBJETOS) return;
     c.objetos[c.total++] = {x, y, tipo, tamanho, tom, sortear(0, 628) / 100.0f};
 }
 
+// Retorno: um tom de folha sorteado que combina com o tipo de árvore.
 int tomDaArvore(int tipo) {
     switch (tipo) {
         case PINHEIRO: return sortear(0, 1);
@@ -232,6 +247,7 @@ void adicionarBosque(Cenario& c, Rectangle proibido) {
     }
 }
 
+// Espalha flores, pedrinhas, tufos e cogumelos fora da área proibida.
 void adicionarEnfeites(Cenario& c, Rectangle proibido, int quantos) {
     for (int i = 0; i < quantos; i++) {
         int x = sortear(0, c.largura), y = sortear(2, c.altura);
@@ -255,6 +271,7 @@ void ordenarPorY(Cenario& c) {
     }
 }
 
+// Desenha um enfeite do chão conforme o tipo dele.
 void desenharEnfeite(const ObjetoCenario& o, float tempo) {
     switch (o.tipo) {
         case FLOR:     flores(o.x, o.y, o.tamanho, o.tom); break;
@@ -277,11 +294,13 @@ void coresDaFolha(int tom, Color& escuro, Color& medio, Color& claro) {
     claro = t.claro;
 }
 
+// Retorno: quanto a árvore balança agora. Mistura uma onda rápida com rajadas lentas.
 float ventoNaArvore(float tempo, float fase) {
     float rajada = 0.6f + 0.6f * sinf(tempo * 0.35f + fase * 0.2f);
     return sinf(tempo * 1.6f + fase) * rajada;
 }
 
+// Desenha a árvore do tipo pedido uma vez, sem contorno.
 static void arvoreSemContorno(int x, int y, int tipo, int tamanho, int tom, float balanco) {
     const TomFolha& t = TONS[tom % 4];
     switch (tipo) {
@@ -293,6 +312,7 @@ static void arvoreSemContorno(int x, int y, int tipo, int tamanho, int tom, floa
     }
 }
 
+// Desenha a árvore com contorno escuro (silhueta deslocada e depois as cores).
 void desenharArvoreVariada(int x, int y, int tipo, int tamanho, int tom, float balanco) {
     const Color borda = {26, 40, 36, 255};
     for (int passo = 0; passo < PASSOS_CONTORNO; passo++) {
@@ -316,6 +336,7 @@ void gerarCenario(Cenario& c, Rectangle proibido, int largura, int altura,
     ordenarPorY(c);
 }
 
+// Pinta a grama, as manchas e o riacho (o que fica embaixo de tudo).
 static void desenharFundoCampo(const Cenario& c, float tempo) {
     ClearBackground(CAMPO);
     for (int i = 0; i < c.total; i++) {
@@ -325,6 +346,7 @@ static void desenharFundoCampo(const Cenario& c, float tempo) {
     desenharRiacho(c, tempo);
 }
 
+// Desenha o cenário inteiro: campo, enfeites e árvores.
 void desenharCenario(const Cenario& c, float tempo) {
     desenharFundoCampo(c, tempo);
     for (int i = 0; i < c.total; i++) {
@@ -338,6 +360,7 @@ void desenharCenario(const Cenario& c, float tempo) {
     }
 }
 
+// Só o chão do cenário, sem as árvores (na vista 3D elas são desenhadas em 3D).
 void desenharChaoCenario(const Cenario& c, float tempo) {
     desenharFundoCampo(c, tempo);
     for (int i = 0; i < c.total; i++) {
@@ -346,6 +369,8 @@ void desenharChaoCenario(const Cenario& c, float tempo) {
     }
 }
 
+// Calcula a i-ésima árvore (0 a 2) de um lote fechado a partir da semente,
+// assim o lote sempre tem as mesmas árvores. Os resultados voltam pelas referências.
 void arvoreDoLote(int semente, int i, int& dx, int& dy, int& tipo, int& tamanho, int& tom) {
     const int pos[3][2] = {{5, 11}, {15, 14}, {9, 21}};
     dx = pos[i][0];
@@ -367,6 +392,7 @@ Fumaca fumacas[80] = {};
 
 }
 
+// Solta um floco de fumaça no ponto (usa a primeira vaga livre).
 void soltarFumaca(float x, float y) {
     for (Fumaca& f : fumacas) {
         if (f.vida > 0) continue;
@@ -375,6 +401,7 @@ void soltarFumaca(float x, float y) {
     }
 }
 
+// Faz a fumaça subir, crescer e sumir com o tempo.
 void atualizarFumaca(float dt) {
     for (Fumaca& f : fumacas) {
         if (f.vida <= 0) continue;
@@ -385,6 +412,7 @@ void atualizarFumaca(float dt) {
     }
 }
 
+// Copia a fumaça viva pra fora (a vista 3D usa). Retorno: quantas copiou.
 int obterFumacas(EstadoFumaca saida[], int maximo) {
     int total = 0;
     for (const Fumaca& f : fumacas) {
@@ -394,6 +422,7 @@ int obterFumacas(EstadoFumaca saida[], int maximo) {
     return total;
 }
 
+// Desenha os flocos de fumaça cada vez mais transparentes.
 void desenharFumaca() {
     for (const Fumaca& f : fumacas) {
         if (f.vida <= 0) continue;
@@ -418,6 +447,7 @@ int totalGalinhas = 0;
 Rectangle areaGalinhas;
 bool (*galinhaPodeAndar)(float, float) = nullptr;
 
+// Sorteia um lugar novo pra galinha andar, tentando até 8 vezes achar um lugar permitido.
 void novoDestino(Galinha& g) {
     for (int tentativa = 0; tentativa < 8; tentativa++) {
         float x = areaGalinhas.x + GetRandomValue(0, static_cast<int>(areaGalinhas.width));
@@ -430,6 +460,7 @@ void novoDestino(Galinha& g) {
     }
 }
 
+// Retorno: posição, direção e pose da galinha nesse instante.
 EstadoGalinha estadoDaGalinha(const Galinha& g, float tempo) {
     bool andando = g.espera <= 0;
     int passo = andando ? static_cast<int>(tempo * 8) % 2 : 0;
@@ -439,6 +470,7 @@ EstadoGalinha estadoDaGalinha(const Galinha& g, float tempo) {
 
 }
 
+// Desenha uma galinha. d: direção (1 ou -1); cabecaBaixa quando está bicando.
 void desenharGalinhaEm(int x, int y, int d, int passo, bool cabecaBaixa) {
     int cabecaY = cabecaBaixa ? y - 1 : y - 3;
     px(x - 1, y + 1, 4, 1, Fade(CONTORNO, 0.25f));            // sombra
@@ -453,6 +485,7 @@ void desenharGalinhaEm(int x, int y, int d, int passo, bool cabecaBaixa) {
     px(x + 1 - passo, y, 1, 1, DOURADO_ESCURO);
 }
 
+// Copia o estado das galinhas pra fora (pra vista 3D). Retorno: quantas copiou.
 int obterGalinhas(EstadoGalinha saida[], int maximo, float tempo) {
     int total = 0;
     for (int i = 0; i < totalGalinhas && total < maximo; i++) {
@@ -461,6 +494,7 @@ int obterGalinhas(EstadoGalinha saida[], int maximo, float tempo) {
     return total;
 }
 
+// Solta até 10 galinhas na área. podeAndar diz se um ponto está livre (fora dos prédios).
 void prepararGalinhas(Rectangle area, int quantidade, bool (*podeAndar)(float x, float y)) {
     areaGalinhas = area;
     galinhaPodeAndar = podeAndar;
@@ -476,6 +510,7 @@ void prepararGalinhas(Rectangle area, int quantidade, bool (*podeAndar)(float x,
     }
 }
 
+// Cada galinha espera, bica ou anda até o destino dela.
 void atualizarGalinhas(float dt) {
     for (int i = 0; i < totalGalinhas; i++) {
         Galinha& g = galinhas[i];
@@ -497,6 +532,7 @@ void atualizarGalinhas(float dt) {
     }
 }
 
+// Desenha todas as galinhas.
 void desenharGalinhas(float tempo) {
     for (int i = 0; i < totalGalinhas; i++) {
         EstadoGalinha e = estadoDaGalinha(galinhas[i], tempo);

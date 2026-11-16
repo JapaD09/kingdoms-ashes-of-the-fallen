@@ -49,4 +49,7 @@ const char* alternarEquipe(ColecaoHerois& colecao, int id);
 int vidaDoHeroi(const ColecaoHerois& colecao, int id);
 int ataqueDoHeroi(const ColecaoHerois& colecao, int id);
 
+// Soma nas variáveis o bônus das auras dos heróis escalados (vale pro grupo todo).
+void somarAuras(const ColecaoHerois& colecao, int& ataque, int& vida);
+
 #endif

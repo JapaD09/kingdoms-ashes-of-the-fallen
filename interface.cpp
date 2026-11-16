@@ -147,23 +147,27 @@ float crescimentoDoLote(int linha, int coluna) {
     return suavizar(t) * (1 + 0.3f * sinf(t * PI));
 }
 
+// Mostra a mensagem no rodapé por uns 3 segundos. Mensagem vazia é ignorada.
 void avisar(const string& mensagem) {
     if (mensagem.empty()) return;
     tela.mensagem = mensagem;
     tela.tempoMensagem = 3.5f;
 }
 
+// Guarda o texto da dica que segue o mouse neste quadro (a string fica na tela pra não sumir).
 void dicaCom(const string& texto) {
     tela.textoDica = texto;
     tela.dica = tela.textoDica.c_str();
 }
 
+// Retorno: o retângulo do lote na tela virtual.
 Rectangle areaLote(int linha, int coluna) {
     return {static_cast<float>(GRADE_X + coluna * LOTE),
             static_cast<float>(GRADE_Y + linha * LOTE),
             static_cast<float>(LOTE), static_cast<float>(LOTE)};
 }
 
+// Retorno: o retângulo da i-ésima carta da mão.
 Rectangle areaCarta(int i) {
     return {static_cast<float>(75 + i * 34), 138, 32, 42};
 }
@@ -174,19 +178,23 @@ int cartaNaMao(const Reino& reino, int i) {
     return (i >= 0 && i < reino.baralho.naMao) ? reino.baralho.mao[i] : -1;
 }
 
+// Retorno: o id da carta selecionada na mão, ou -1.
 int cartaEscolhida(const Reino& reino) {
     return cartaNaMao(reino, tela.cartaSelecionada);
 }
 
+// Retorno: o tipo da carta selecionada, ou -1 se não tem nenhuma.
 int tipoEscolhido(const Reino& reino) {
     int carta = cartaEscolhida(reino);
     return carta < 0 ? -1 : modeloCarta(carta).tipo;
 }
 
+// Retorno: true se a carta é colocada num lote (prédio ou tropa).
 bool ehPredio(int tipoCarta) {
     return tipoCarta == CARTA_PREDIO || tipoCarta == CARTA_TROPA;
 }
 
+// Retorno: a função que desenha a arte da carta (prédio, ícone de encanto...).
 Desenho artDaCarta(int carta) {
     const ModeloCarta& m = modeloCarta(carta);
     switch (m.tipo) {
@@ -204,6 +212,7 @@ Desenho artDaCarta(int carta) {
     }
 }
 
+// Retorno: a cor do nome do tipo da carta.
 Color corDoTipo(int tipoCarta) {
     switch (tipoCarta) {
         case CARTA_PREDIO: return FOLHA_CLARA;
@@ -213,14 +222,17 @@ Color corDoTipo(int tipoCarta) {
     }
 }
 
+// Retorno: a cor da borda da carta conforme a raridade.
 Color corDaRaridade(int raridade) {
     return raridade >= 3 ? ROXO : raridade == 2 ? CRISTAL_ESC : PEDRA;
 }
 
+// Retorno: true se o estoque cobre o custo da carta.
 bool podePagar(const Reino& reino, int carta) {
     return temRecursos(reino.estoque, custoDaCarta(carta));
 }
 
+// Retorno: o índice da carta da mão embaixo do mouse, ou -1.
 int cartaSobMouse(const Reino& reino) {
     for (int i = 0; i < reino.baralho.naMao; i++) {
         if (mouseSobre(areaCarta(i))) return i;
@@ -250,6 +262,7 @@ bool loteSobMouse(const Reino& reino, int& linha, int& coluna) {
     return linha < GRADE && coluna < GRADE;
 }
 
+// Retorno: true se o lote está fechado e encosta (em cruz) num lote já liberado.
 bool expansaoValida(const Reino& reino, int linha, int coluna) {
     if (loteLiberado(reino, linha, coluna)) return false;
     return loteLiberado(reino, linha - 1, coluna) || loteLiberado(reino, linha + 1, coluna)
@@ -264,6 +277,7 @@ void reiniciarBrasa(Brasa& b, bool espalhar) {
     b.velocidade = GetRandomValue(6, 16);
 }
 
+// Faz as brasas do fundo subirem balançando; as que saem da tela voltam por baixo.
 void atualizarBrasas(float dt) {
     for (Brasa& b : tela.brasas) {
         b.y -= b.velocidade * dt;
@@ -272,6 +286,7 @@ void atualizarBrasas(float dt) {
     }
 }
 
+// Desenha as brasas como pontinhos que somem perto do topo.
 void desenharBrasas() {
     for (const Brasa& b : tela.brasas) {
         float alpha = b.y / VA;
@@ -303,6 +318,8 @@ void desenharVinheta() {
     }
 }
 
+// Desenha um lote da grade: grama, lote fechado ou o prédio que estiver nele.
+// comArvores: false quando quem chama já desenhou as árvores (vista 3D).
 void desenharLote(const Reino& reino, int linha, int coluna, bool comArvores = true) {
     Rectangle r = areaLote(linha, coluna);
     int x = r.x, y = r.y;
@@ -365,6 +382,7 @@ void desenharLotesValidos(const Reino& reino) {
     }
 }
 
+// Monta a dica com nome, nível e bônus do prédio embaixo do mouse.
 void dicaDoPredio(const Edificio& e) {
     string texto = modeloEdificio(e.tipo).nome;
     if (e.nivel > 1) texto += " nv " + to_string(e.nivel);
@@ -374,6 +392,7 @@ void dicaDoPredio(const Edificio& e) {
     dicaCom(texto);
 }
 
+// Contorna o lote embaixo do mouse e mostra a prévia da carta escolhida (verde pode, vermelho não).
 void desenharDestaqueLote(const Reino& reino, bool comPrevia = true) {
     int linha, coluna;
     if (!loteSobMouse(reino, linha, coluna)) return;
@@ -445,6 +464,7 @@ void desenharFilaNoMapa(const Reino& reino) {
     }
 }
 
+// Desenha o planalto e todos os lotes do reino na vista 2D.
 void desenharGrade(const Reino& reino) {
     desenharPlanalto();
     for (int l = 0; l < GRADE; l++) {
@@ -492,6 +512,7 @@ int itemTopo(int indice, Desenho icone, int valor, const char* nome, int x, Colo
     return x + largura + 2;
 }
 
+// Barra de cima: turno, recursos, cristais e vida do castelo.
 void desenharBarraTopo(const Jogo& jogo) {
     const Reino& reino = jogo.reino;
     DrawRectangle(0, 0, VL, 15, MADEIRA_ESCURA);
@@ -515,6 +536,7 @@ void desenharBarraTopo(const Jogo& jogo) {
     itemTopo(8, iconeCoracao, reino.vidaCastelo, "Vida do castelo", x, fraco ? CORACAO_CLARO : TEXTO_CLARO);
 }
 
+// Desenha um botão da barra; alguns mudam o texto conforme o estado (vista, preço da troca).
 void desenharBotao(const Botao& original) {
     Botao b = original;
     if (b.acao == TROCAR_VISTA) b.texto = modo3D ? "Vista 2D" : "Vista 3D";
@@ -554,6 +576,7 @@ void desenharSeta(int x, int y) {
     DrawRectangle(x, y + 2 + pulo, 1, 1, DOURADO);
 }
 
+// Pinta o fundo da arte da carta, diferente pra cada tipo. i varia o desenho entre cartas.
 void fundoDaArte(int x, int y, int tipoCarta, int i) {
     switch (tipoCarta) {
         case CARTA_ENCANTO:
@@ -583,6 +606,8 @@ static void desenharPrecoDaCarta(int carta, int x, int y, bool podeComprar) {
     else desenharTexto("0", x + 11, y + 32, 1, VERDE_TEXTO);
 }
 
+// Desenha a carta inteira: moldura, arte, nome e custo.
+// podeComprar: false deixa a carta apagada; selecionada: levanta e contorna.
 void desenharFrenteDaCarta(int carta, Rectangle r, int i, bool podeComprar, bool selecionada) {
     const ModeloCarta& modelo = modeloCarta(carta);
     int x = r.x, y = r.y;
@@ -610,6 +635,7 @@ void desenharFrenteDaCarta(int carta, Rectangle r, int i, bool podeComprar, bool
     }
 }
 
+// Desenha a carta i da mão na posição dela, com a animação de entrada.
 void desenharCarta(int i, const Reino& reino) {
     int carta = cartaNaMao(reino, i);
     Rectangle r = areaCarta(i);
@@ -621,6 +647,7 @@ void desenharCarta(int i, const Reino& reino) {
     desenharFrenteDaCarta(carta, r, i, podeComprar, selecionada);
 }
 
+// Escreve uma linha de custo (vermelho se falta). Retorno: o y da próxima linha.
 int linhaCusto(Desenho icone, int custo, int tenho, int y) {
     if (custo <= 0) return y;
     icone(251, y, 1);
@@ -629,6 +656,7 @@ int linhaCusto(Desenho icone, int custo, int tenho, int y) {
     return y + 9;
 }
 
+// Painel da direita com nome, tipo, custo e descrição da carta.
 void desenharInfoCarta(int carta, const Reino& reino) {
     const Recursos& r = reino.estoque;
     const ModeloCarta& modelo = modeloCarta(carta);
@@ -662,6 +690,7 @@ void itemPrevisao(Desenho icone, int valor, int& coluna, int& y) {
     if (coluna == 0) y += 9;
 }
 
+// Mostra a bandeira e o nome do reino que ataca no fim do turno.
 void desenharProximoAtaque(const Jogo& jogo) {
     int reino = reinoDaVez(jogo);
     const ReinoInimigo& inimigo = reinoInimigo(reino);
@@ -676,6 +705,7 @@ void desenharProximoAtaque(const Jogo& jogo) {
     }
 }
 
+// Painel da direita quando não tem carta: próximo ataque e produção por turno.
 void desenharResumoReino(const Jogo& jogo) {
     const Reino& reino = jogo.reino;
     desenharProximoAtaque(jogo);
@@ -702,6 +732,7 @@ void desenharResumoReino(const Jogo& jogo) {
     barraDeVida(251, 137, 60, reino.vidaCastelo, VIDA_CASTELO, TELHADO_VERM);
 }
 
+// Escolhe o que vai no painel da direita: info da carta (sob o mouse ou selecionada) ou resumo.
 void desenharPainelInfo(const Jogo& jogo) {
     caixaComSombra({246, 20, 70, 124}, PERGAMINHO);
     DrawRectangle(248, 22, 66, 120, Fade(PERGAMINHO_ESC, 0.25f));
@@ -715,6 +746,7 @@ void desenharPainelInfo(const Jogo& jogo) {
     desenharResumoReino(jogo);
 }
 
+// Uma linha do painel de recursos: ícone, nome e valor alinhado à direita.
 void linhaRecurso(Desenho icone, const char* nome, int valor, int y) {
     icone(108, y, 1);
     desenharTexto(nome, 118, y, 1, CONTORNO);
@@ -722,6 +754,7 @@ void linhaRecurso(Desenho icone, const char* nome, int valor, int y) {
     desenharTexto(numero, 212 - larguraTexto(numero, 1), y, 1, VERMELHO_ESC);
 }
 
+// Janela "Tesouro do Reino" com todos os recursos guardados.
 void desenharPainelRecursos(const Reino& reino) {
     caixaComSombra({100, 26, 150, 124}, PERGAMINHO);
     desenharTexto("Tesouro do Reino", 108, 31, 1, VERMELHO_ESC);
@@ -739,10 +772,12 @@ void desenharPainelRecursos(const Reino& reino) {
     desenharTexto(TextFormat("Poções %d   Armas %d   Armaduras %d", reino.pocoes, reino.armas, reino.armaduras), 108, 138, 1, MADEIRA_ESCURA);
 }
 
+// Retorno: a cor do item do catálogo conforme a raridade.
 Color corRaridade(int raridade) {
     return raridade == 3 ? DOURADO : raridade == 2 ? TELHADO_AZUL : PEDRA;
 }
 
+// Lista os itens do catálogo na ordem atual (por ID ou por preço).
 void desenharListaCatalogo() {
     desenharTexto("ID", 26, 36, 1, PERGAMINHO_ESC);
     desenharTexto("Item", 44, 36, 1, PERGAMINHO_ESC);
@@ -759,6 +794,7 @@ void desenharListaCatalogo() {
     }
 }
 
+// Mostra o resultado da busca por ID e quantas comparações cada busca fez.
 void desenharResultadoBusca() {
     if (!catalogo.buscou) {
         desenharTexto("Digite um ID\ne aperte Enter", 205, 122, 1, PERGAMINHO_ESC);
@@ -771,6 +807,7 @@ void desenharResultadoBusca() {
     desenharTexto(TextFormat("Binária: %d", catalogo.compBinaria), 205, 148, 1, CONTORNO);
 }
 
+// Janela do catálogo de itens: lista, altura da árvore, campo de busca e botões.
 void desenharCatalogo(const Jogo& jogo) {
     DrawRectangle(0, 0, VL, VA, Fade(CONTORNO, 0.5f));
     caixaComSombra({20, 22, 280, 152}, PERGAMINHO);
@@ -793,6 +830,7 @@ void desenharCatalogo(const Jogo& jogo) {
     botaozinho(BOTAO_FECHAR, "Fechar", false);
 }
 
+// Caixinha da mensagem no rodapé, sumindo no último segundo.
 void desenharMensagem() {
     if (tela.tempoMensagem <= 0) return;
     float alpha = tela.tempoMensagem > 1 ? 1.0f : tela.tempoMensagem;
@@ -803,6 +841,7 @@ void desenharMensagem() {
     desenharTexto(texto, r.x + 6, 120, 1, Fade(TEXTO_CLARO, alpha));
 }
 
+// Desenha a dica perto do mouse sem deixar sair da tela.
 void desenharDica() {
     if (tela.dica == nullptr) return;
     Vector2 m = mouseVirtual();
@@ -813,6 +852,7 @@ void desenharDica() {
     desenharTexto(tela.dica, x + 4, static_cast<int>(m.y) + 9, 1, CONTORNO);
 }
 
+// Escurece a tela e mostra "Turno N" na troca de turno.
 void desenharTransicao(int turno) {
     if (tela.tempoTransicao <= 0) return;
     float alpha = tela.tempoTransicao > 0.4f ? 1.0f : tela.tempoTransicao / 0.4f;
@@ -835,6 +875,7 @@ void desenharIlhaTitulo() {
     for (int i = 0; i < 112; i += 9) DrawRectangle(106 + i, 132 + i % 4, 1, 1, GRAMA_CLARA);
 }
 
+// Tela de abertura: ilha com o castelo, nome do jogo e "clique para começar".
 void desenharTelaTitulo() {
     desenharCenario(cenarioTitulo, tempo());
     desenharSombrasNuvens();
@@ -866,11 +907,13 @@ void desenharChamas() {
     }
 }
 
+// Retorno: o retângulo da i-ésima carta da recompensa.
 Rectangle areaRecompensa(int i) {
     return {96.0f + i * 46, 66, 32, 42};
 }
 const Rectangle BOTAO_SEM_CARTA = {128, 124, 64, 13};
 
+// Janela da recompensa depois da vitória: 3 cartas pra escolher ou pular.
 void desenharRecompensa(const Jogo& jogo) {
     DrawRectangle(0, 0, VL, VA, Fade(CONTORNO, 0.6f));
     caixaComSombra({70, 36, 180, 108}, PERGAMINHO);
@@ -887,6 +930,7 @@ void desenharRecompensa(const Jogo& jogo) {
     botaozinho(BOTAO_SEM_CARTA, "Nenhuma", false);
 }
 
+// Janela "Como jogar" com o resumo das regras.
 void desenharAjuda() {
     DrawRectangle(0, 0, VL, VA, Fade(CONTORNO, 0.6f));
     caixaComSombra({14, 12, 292, 162}, PERGAMINHO);
@@ -918,6 +962,7 @@ void desenharResumoDaPartida(const Jogo& jogo, int y) {
     desenharTexto(TextFormat("Pontuação: %d", pontuacao(jogo)), 98, y + 48, 1, VERMELHO_ESC);
 }
 
+// Tela de vitória com o resumo da partida e o botão de novo jogo.
 void desenharTelaVitoria(const Jogo& jogo) {
     desenharCenario(cenarioTitulo, tempo());
     desenharSombrasNuvens();
@@ -931,6 +976,7 @@ void desenharTelaVitoria(const Jogo& jogo) {
     desenharVinheta();
 }
 
+// Tela de derrota (castelo caiu), com o turno alcançado e o botão de novo jogo.
 void desenharTelaDerrota(const Jogo& jogo) {
     desenharCenario(cenarioTitulo, tempo());
     DrawRectangle(0, 0, VL, VA, Fade(CONTORNO, 0.55f));
@@ -961,6 +1007,8 @@ void desenharChaoDoReino(const Reino& reino) {
     desenharDestaqueLote(reino, false);
 }
 
+// Junta o que a vista 3D precisa pra mostrar a prévia da carta escolhida no lote do mouse.
+// Retorno: a prévia pronta.
 Previa3D previaDaCarta(const Reino& reino) {
     Previa3D previa;
     for (int l = 0; l < GRADE; l++) {
@@ -979,6 +1027,7 @@ Previa3D previaDaCarta(const Reino& reino) {
     return previa;
 }
 
+// Desenha a tela principal (2D ou 3D) e as janelas que estiverem abertas por cima.
 void desenharTelaReino(const Jogo& jogo) {
     if (modo3D) {
         desenharCena3D(cenarioReino, jogo.reino, previaDaCarta(jogo.reino), tempo());
@@ -1015,6 +1064,7 @@ void abrirCatalogo(const Jogo& jogo) {
     for (int i = 0; i < catalogo.total; i++) catalogo.naTela[i] = catalogo.porId[i];
 }
 
+// Copia os itens pra lista da tela e, se porPreco, ordena com o insertion sort.
 void mostrarCatalogo(bool porPreco) {
     for (int i = 0; i < catalogo.total; i++) catalogo.naTela[i] = catalogo.porId[i];
     catalogo.porPreco = porPreco;
@@ -1033,6 +1083,7 @@ void buscarNoCatalogo(const Jogo& jogo) {
     catalogo.idAchado = item ? item->id : -1;
 }
 
+// Lê os dígitos do ID e, no Enter, faz as três buscas pra comparar.
 void lerTecladoCatalogo(const Jogo& jogo) {
     for (int c = GetCharPressed(); c > 0; c = GetCharPressed()) {
         if (c >= '0' && c <= '9' && catalogo.busca.size() < 3) catalogo.busca += static_cast<char>(c);
@@ -1042,6 +1093,7 @@ void lerTecladoCatalogo(const Jogo& jogo) {
     if (IsKeyPressed(KEY_ESCAPE)) catalogo.aberto = false;
 }
 
+// Teclado e cliques enquanto o catálogo está aberto.
 void tratarCatalogo(const Jogo& jogo) {
     lerTecladoCatalogo(jogo);
     if (!IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) return;
@@ -1051,6 +1103,7 @@ void tratarCatalogo(const Jogo& jogo) {
     if (mouseSobre(BOTAO_FECHAR)) catalogo.aberto = false;
 }
 
+// Fim do turno: encerra o turno no jogo e, se veio ataque, troca pra tela de batalha.
 void comecarBatalha(Jogo& jogo) {
     tela.cartaSelecionada = -1;
     tela.painelRecursos = false;
@@ -1081,6 +1134,7 @@ static void trocarAsCartas(Jogo& jogo) {
     anim.tempoMao = 0;
 }
 
+// Faz o que o botão da barra pede (recursos, fim do turno, desfazer, catálogo...).
 void executarAcao(Jogo& jogo, int acao) {
     tocar(SOM_CLIQUE);
     switch (acao) {
@@ -1101,6 +1155,7 @@ void executarAcao(Jogo& jogo, int acao) {
     }
 }
 
+// Clique num lote: joga a carta escolhida nele ou mostra o que tem ali.
 void cliqueNoLote(Reino& reino, int linha, int coluna) {
     const Edificio* ocupante = buscarEdificioNoLote(reino.edificios, linha, coluna);
     if (tela.cartaSelecionada >= 0) {
@@ -1130,6 +1185,7 @@ void cliqueDireito(Reino& reino) {
     tela.painelRecursos = false;
 }
 
+// Seleciona a carta i (ou desmarca). Carta instantânea é jogada na hora.
 void escolherCarta(Reino& reino, int i) {
     int carta = cartaNaMao(reino, i);
     if (carta < 0) return;
@@ -1143,6 +1199,7 @@ void escolherCarta(Reino& reino, int i) {
     tela.cartaSelecionada = (i == tela.cartaSelecionada) ? -1 : i;
 }
 
+// Clique esquerdo na tela do reino: carta, botão ou lote, nessa ordem.
 void tratarClique(Jogo& jogo) {
     int carta = cartaSobMouse(jogo.reino);
     if (carta >= 0) {
@@ -1220,6 +1277,7 @@ void repararNosPredios(const Reino& reino) {
     }
 }
 
+// Avança os tempos das animações (mão entrando, construções, fumaça...). dt: segundos do quadro.
 void atualizarAnimacoes(const Jogo& jogo, float dt) {
     repararNosPredios(jogo.reino);
     if (jogo.turno != anim.turnoVisto) {       // mão nova: as cartas entram de novo
@@ -1279,6 +1337,7 @@ static bool tratarJanelasAbertas(Jogo& jogo) {
     return false;
 }
 
+// Um quadro da tela do reino: animações, janelas abertas, teclado e mouse.
 void atualizarTelaReino(Jogo& jogo) {
     float dt = GetFrameTime();
     atualizarAnimacoes(jogo, dt);
@@ -1298,6 +1357,7 @@ void atualizarTelaReino(Jogo& jogo) {
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) tratarClique(jogo);
 }
 
+// Um quadro da batalha. Quando a animação termina, aplica o resultado e volta pro reino (ou derrota).
 void atualizarBatalha(Jogo& jogo) {
     if (!atualizarTelaBatalha(jogo.batalha, GetFrameTime())) return;
     bool venceu = jogo.batalha.vitoria;
@@ -1327,6 +1387,7 @@ void novoJogo(Jogo& jogo) {
 
 }
 
+// Abre a janela do raylib, cria a textura virtual (320x180) e carrega cenários, 3D e som.
 void abrirJanela() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
     InitWindow(VL * ESCALA, VA * ESCALA, "Kingdoms: Ashes of the Fallen");
@@ -1347,10 +1408,12 @@ void abrirJanela() {
     iniciarSom();
 }
 
+// Retorno: false quando o jogador fecha a janela.
 bool janelaAberta() {
     return !WindowShouldClose();
 }
 
+// Libera som, 3D e a textura e fecha a janela.
 void fecharJanela() {
     fecharSom();
     liberarVisao3D();
@@ -1365,6 +1428,7 @@ static void sairDoTitulo() {
     anim.escurecer = 1;
 }
 
+// Lê a entrada do quadro e passa pra tela que estiver ativa.
 void atualizarInterface(Jogo& jogo) {
     float dt = GetFrameTime();
     if (IsKeyPressed(KEY_F11)) ToggleBorderlessWindowed();
@@ -1397,6 +1461,7 @@ void atualizarInterface(Jogo& jogo) {
     }
 }
 
+// Desenha o quadro na textura virtual e depois estica ela pro tamanho da janela.
 void desenharInterface(const Jogo& jogo) {
     tela.dica = nullptr;
     if (tela.atual == TELA_REINO && modo3D) {

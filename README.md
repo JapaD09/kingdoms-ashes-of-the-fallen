@@ -210,10 +210,22 @@ Na tela **Catálogo** (`algoritmos.cpp`):
 A lógica usa um sorteio próprio com semente (`aleatorio.cpp`), então os testes dão sempre o mesmo resultado.
 
 ```
-g++ -std=c++17 -Wall -Wextra testes.cpp jogo.cpp reino.cpp cartas.cpp herois.cpp inimigos.cpp combate.cpp \
-    expedicao.cpp estruturas.cpp algoritmos.cpp aleatorio.cpp -o testes
-./testes
+make testes && ./testes
 ```
+
+## Demonstração no terminal
+
+`demo.cpp` roda as estruturas e os algoritmos sem abrir a janela, usando as mesmas funções do jogo:
+constrói e desfaz (lista + pilha), agenda construções sem recurso (fila), mostra a árvore do
+catálogo, ordena por preço, compara as três buscas e roda um turno inteiro com batalha.
+Também mede o tempo de 1000 buscas num vetor de 10 mil itens:
+
+```
+make demo && ./demo
+```
+
+Num notebook comum deu algo perto de 4 ms pra sequencial (10000 comparações por busca)
+e 0,01 ms pra binária (14 comparações), com `-O2`.
 
 ## Balanceamento
 
@@ -288,6 +300,7 @@ que chegaram ao turno 60 com o castelo de pé mas sem derrotar todos os chefes.
 | `expedicao.h/.cpp` | Mapa de nós, eventos, saque e combate por ações |
 | `tela_expedicao.h/.cpp` | Tela da expedição |
 | `economia.h` | Números de balanceamento num lugar só |
+| `demo.cpp` | Demonstração no terminal das estruturas, buscas e um turno (não faz parte do jogo) |
 | `simulador.cpp` | Joga centenas de partidas sozinho pra comparar economias (não faz parte do jogo) |
 | `som.h/.cpp` | Efeitos sonoros montados no código |
 | `combate.h/.cpp` | Batalha em rodadas, dano e recompensas |

@@ -21,11 +21,13 @@ static void conferir_silencioso(bool condicao) {
     silenciosoOk = silenciosoOk && condicao;
 }
 
+// Imprime ok ou FALHA com a descrição e conta as falhas.
 static void conferir(bool condicao, const string& descricao) {
     cout << (condicao ? "  ok    " : "  FALHA ") << descricao << "\n";
     if (!condicao) falhas++;
 }
 
+// Retorno: uma fazenda com o id e o lote dados, pra montar listas de teste.
 static Edificio edificio(int id, int linha, int coluna) {
     Edificio e;
     e.id = id;
@@ -35,6 +37,7 @@ static Edificio edificio(int id, int linha, int coluna) {
     return e;
 }
 
+// Testa a lista encadeada: inserir, buscar, remover do começo, meio e fim.
 static void testarLista() {
     cout << "Lista encadeada\n";
     ListaEdificios lista;
@@ -59,6 +62,7 @@ static void testarLista() {
     conferir(lista.primeiro == nullptr && lista.tamanho == 0, "liberar zera a lista");
 }
 
+// Testa construir e demolir: custo exato, sem recurso, lote ocupado, castelo e floresta.
 static void testarConstrucao() {
     cout << "Construcao\n";
     Reino reino;
@@ -85,6 +89,7 @@ static void testarConstrucao() {
     liberarReino(reino);
 }
 
+// Testa a produção do turno: comida, madeira, imposto e o que acontece com fome.
 static void testarTurno() {
     cout << "Turno\n";
     Reino reino;
@@ -108,6 +113,7 @@ static void testarTurno() {
     liberarReino(reino);
 }
 
+// Testa a pilha (LIFO) e a fila (FIFO) isoladas.
 static void testarPilhaEFila() {
     cout << "Pilha e fila\n";
     PilhaAcoes pilha;
@@ -137,6 +143,7 @@ static void testarPilhaEFila() {
     conferir(filaVazia(fila) && fila.fim == nullptr, "fila esvaziou certinho");
 }
 
+// Testa o desfazer (pilha) e a fila de ordens de construção juntos.
 static void testarDesfazerEOrdens() {
     cout << "Desfazer e ordens\n";
     Reino reino;
@@ -166,9 +173,8 @@ static void testarDesfazerEOrdens() {
     liberarReino(reino);
 }
 
-static void testarCatalogo() {
-    cout << "Arvore, ordenacao e buscas\n";
-    NoArvore* raiz = nullptr;
+// Árvore do catálogo: busca no vazio, id repetido, achar e não achar.
+static void testarArvore(NoArvore*& raiz) {
     int comps = 0;
     conferir(buscarItem(raiz, 5, comps) == nullptr, "buscar em arvore vazia");
     montarCatalogo(raiz);
@@ -181,6 +187,28 @@ static void testarCatalogo() {
     conferir(achou && achou->nome == "Cota de malha", "acha id existente");
     comps = 0;
     conferir(buscarItem(raiz, 44, comps) == nullptr, "nao acha id inexistente");
+}
+
+// Insertion sort: ordena por preço, melhor caso com n-1 comparações e vetor vazio.
+static void testarOrdenacao(Item v[], int n) {
+    int comps = 0;
+    ordenarPorValor(v, n, comps);
+    bool porPreco = true;
+    for (int i = 1; i < n; i++) porPreco = porPreco && v[i - 1].valor <= v[i].valor;
+    conferir(porPreco && v[0].nome == "Pão de viagem", "insertion sort por preco");
+    int compOrdenado;
+    ordenarPorValor(v, n, compOrdenado);
+    conferir(compOrdenado == n - 1, "ja ordenado: n-1 comparacoes (melhor caso)");
+    Item vazio[1];
+    ordenarPorValor(vazio, 0, comps);
+    conferir(comps == 0, "vetor vazio nao quebra");
+}
+
+// In-ordem crescente e as duas buscas no vetor ordenado por id.
+static void testarCatalogo() {
+    cout << "Arvore, ordenacao e buscas\n";
+    NoArvore* raiz = nullptr;
+    testarArvore(raiz);
 
     Item v[20];
     int n = 0;
@@ -194,17 +222,7 @@ static void testarCatalogo() {
     conferir(buscaBinaria(v, n, 93, compBin) == 13 && compBin <= 4, "binaria acha em ate log2(n)+1");
     conferir(buscaBinaria(v, n, 94, compBin) == -1, "binaria nao acha inexistente");
     conferir(buscaSequencial(v, n, 1, compSeq) == -1, "sequencial nao acha inexistente");
-
-    ordenarPorValor(v, n, comps);
-    bool porPreco = true;
-    for (int i = 1; i < n; i++) porPreco = porPreco && v[i - 1].valor <= v[i].valor;
-    conferir(porPreco && v[0].nome == "Pão de viagem", "insertion sort por preco");
-    int compOrdenado;
-    ordenarPorValor(v, n, compOrdenado);
-    conferir(compOrdenado == n - 1, "ja ordenado: n-1 comparacoes (melhor caso)");
-    Item vazio[1];
-    ordenarPorValor(vazio, 0, comps);
-    conferir(comps == 0, "vetor vazio nao quebra");
+    testarOrdenacao(v, n);
 
     liberarArvore(raiz);
     conferir(raiz == nullptr, "liberar zera a raiz");
@@ -224,6 +242,7 @@ static int darCarta(Reino& reino, int carta) {
     return 0;
 }
 
+// Testa a troca de mão e o preço de subir o nível dos prédios.
 static void testarTrocaDeMao() {
     cout << "Troca de mao e preco do nivel\n";
     semearAleatorio(4);
@@ -249,6 +268,32 @@ static void testarTrocaDeMao() {
     liberarReino(reino);
 }
 
+// Encantos: Lâminas no quartel, desfazer devolve a carta, e não vale em fazenda.
+static void testarEncantos(Reino& reino, const Edificio* quartel) {
+    reino.baralho.mao[reino.baralho.naMao++] = 12;   // Lâminas
+    jogarCarta(reino, reino.baralho.naMao - 1, 1, 1);
+    conferir(quartel->bonusAtaque == 2, "laminas dao +2 de ataque");
+    desfazerUltimaAcao(reino);
+    conferir(quartel->bonusAtaque == 0 && naMao(reino, 12) >= 0, "desfazer encanto devolve a carta");
+
+    construirEdificio(reino, FAZENDA, 1, 2);
+    reino.baralho.mao[0] = 12;
+    string msg = jogarCarta(reino, 0, 1, 2);
+    conferir(msg.find("tropa") != string::npos, "laminas nao vale em fazenda");
+}
+
+// Expansão só abre lote colado no reino, e desfazer fecha de novo.
+static void testarExpansao(Reino& reino) {
+    reino.baralho.mao[0] = 16;                       // Expansão
+    jogarCarta(reino, 0, 0, 0);
+    conferir(!loteLiberado(reino, 0, 0), "expansao longe do reino e recusada");
+    jogarCarta(reino, 0, 0, 2);
+    conferir(loteLiberado(reino, 0, 2), "expansao abre lote colado");
+    desfazerUltimaAcao(reino);
+    conferir(!loteLiberado(reino, 0, 2), "desfazer fecha o lote de novo");
+}
+
+// Baralho de 44 cartas, mão de 5, cartas de tropa e virada de turno sem perder carta.
 static void testarCartas() {
     cout << "Cartas e baralho\n";
     semearAleatorio(3);
@@ -262,29 +307,11 @@ static void testarCartas() {
     jogarCarta(reino, i, 1, 1);
     const Edificio* quartel = buscarEdificioNoLote(reino.edificios, 1, 1);
     conferir(quartel && quartel->tipo == QUARTEL && reino.baralho.naMao == 4, "carta de tropa ergue o quartel");
-
     reino.baralho.mao[reino.baralho.naMao++] = 8;
     jogarCarta(reino, reino.baralho.naMao - 1, 1, 1);
     conferir(quartel->nivel == 2, "mesma carta em cima sobe o nivel");
-
-    reino.baralho.mao[reino.baralho.naMao++] = 12;   // Lâminas
-    jogarCarta(reino, reino.baralho.naMao - 1, 1, 1);
-    conferir(quartel->bonusAtaque == 2, "laminas dao +2 de ataque");
-    desfazerUltimaAcao(reino);
-    conferir(quartel->bonusAtaque == 0 && naMao(reino, 12) >= 0, "desfazer encanto devolve a carta");
-
-    construirEdificio(reino, FAZENDA, 1, 2);
-    reino.baralho.mao[0] = 12;
-    string msg = jogarCarta(reino, 0, 1, 2);
-    conferir(msg.find("tropa") != string::npos, "laminas nao vale em fazenda");
-
-    reino.baralho.mao[0] = 16;                       // Expansão
-    msg = jogarCarta(reino, 0, 0, 0);
-    conferir(!loteLiberado(reino, 0, 0), "expansao longe do reino e recusada");
-    jogarCarta(reino, 0, 0, 2);
-    conferir(loteLiberado(reino, 0, 2), "expansao abre lote colado");
-    desfazerUltimaAcao(reino);
-    conferir(!loteLiberado(reino, 0, 2), "desfazer fecha o lote de novo");
+    testarEncantos(reino, quartel);
+    testarExpansao(reino);
 
     int antes = totalDeCartas(reino.baralho);
     descartarTudo(reino.baralho);
@@ -293,9 +320,8 @@ static void testarCartas() {
     liberarReino(reino);
 }
 
-static void testarHerois() {
-    cout << "Herois e invocacao\n";
-    semearAleatorio(11);
+// Gacha: chances somam 100%, garantia de épico a cada 10 e equipe de até 3.
+static void testarInvocacao() {
     int soma = 0;
     for (int r = COMUM; r <= LENDARIO; r++) soma += chanceDaRaridade(r);
     conferir(soma == 100, "chances somam 100%");
@@ -311,6 +337,13 @@ static void testarHerois() {
     conferir(silenciosoOk, "nunca passa de 10 sem epico (garantia)");
     conferir(epicos >= 200 / GARANTIA_EPICO, "pelo menos 1 epico a cada 10");
     conferir(tamanhoDaEquipe(colecao) == MAX_EQUIPE, "equipe enche ate 3");
+}
+
+// Heróis: invocação, estrelas e o custo em cristais.
+static void testarHerois() {
+    cout << "Herois e invocacao\n";
+    semearAleatorio(11);
+    testarInvocacao();
 
     ColecaoHerois nova;
     conferir(string(alternarEquipe(nova, 0)).size() > 0, "nao escala heroi que nao tem");
@@ -329,6 +362,21 @@ static void testarHerois() {
     liberarReino(reino);
 }
 
+// Sem defensor, os inimigos batem direto no castelo.
+static void testarCasteloSemDefesa() {
+    Batalha b;
+    Reino fraco;
+    iniciarReino(fraco);
+    fraco.soldados = 0;
+    montarBatalha(b, fraco, 5, 12);
+    rodadaDeBatalha(b);
+    conferir(b.acabou && !b.vitoria && b.danoNoCastelo > 0, "sem defensor o castelo apanha");
+    aplicarResultado(b, fraco);
+    conferir(fraco.vidaCastelo == VIDA_CASTELO - b.danoNoCastelo, "dano sai da vida do castelo");
+    liberarReino(fraco);
+}
+
+// Dano mínimo, montagem do exército, vitória e recompensa.
 static void testarBatalha() {
     cout << "Batalha\n";
     conferir(calcularDano(5, 2) == 3, "dano = ataque - defesa");
@@ -352,18 +400,10 @@ static void testarBatalha() {
     aplicarResultado(b, reino);
     conferir(reino.estoque.ouro > ouroAntes && reino.cristais > 10, "vitoria da ouro e cristais");
     liberarReino(reino);
-
-    Reino fraco;
-    iniciarReino(fraco);
-    fraco.soldados = 0;
-    montarBatalha(b, fraco, 5, 12);
-    rodadaDeBatalha(b);
-    conferir(b.acabou && !b.vitoria && b.danoNoCastelo > 0, "sem defensor o castelo apanha");
-    aplicarResultado(b, fraco);
-    conferir(fraco.vidaCastelo == VIDA_CASTELO - b.danoNoCastelo, "dano sai da vida do castelo");
-    liberarReino(fraco);
+    testarCasteloSemDefesa();
 }
 
+// Testa o ciclo de turnos: batalha todo turno, os 6 reinos atacando, derrota e reinício.
 static void testarCicloDoJogo() {
     cout << "Turnos e reinos inimigos\n";
     Jogo jogo;
@@ -393,8 +433,8 @@ static void testarCicloDoJogo() {
 }
 
 // mapa da expedição, saque e combate por ações
-static void testarExpedicao() {
-    cout << "Expedicao\n";
+// 200 mapas sorteados, todos com caminho até o chefe; mapa vazio não tem caminho.
+static void testarMapas() {
     semearAleatorio(21);
     bool sempreValido = true;
     for (int i = 0; i < 200; i++) {
@@ -409,18 +449,23 @@ static void testarExpedicao() {
     bool visitados[MAX_NOS] = {};
     conferir(!existeCaminho(vazio.entrada, vazio.chefe, visitados) && !mapaValido(vazio), "mapa vazio nao tem caminho");
     liberarMapa(vazio);
+}
 
-    Jogo jogo;
-    iniciarJogo(jogo, 4);
+// Partir: precisa de herói, gasta comida e só vale uma vez por turno.
+static void testarPartida(Jogo& jogo) {
     conferir(!partirEmExpedicao(jogo).empty(), "sem heroi nao sai em expedicao");
     jogo.reino.herois.estrelas[0] = jogo.reino.herois.estrelas[1] = 5;
     jogo.reino.herois.naEquipe[0] = jogo.reino.herois.naEquipe[1] = true;
-    int comida = jogo.reino.estoque.comida, ouro = jogo.reino.estoque.ouro;
+    int comida = jogo.reino.estoque.comida;
     conferir(partirEmExpedicao(jogo).empty() && jogo.expedicao.ativa, "com herois a expedicao comeca");
     conferir(jogo.reino.estoque.comida == comida - CUSTO_EXPEDICAO, "expedicao gasta comida");
     conferir(!partirEmExpedicao(jogo).empty(), "so uma expedicao por turno");
+}
 
+// Combate por ações dentro da expedição e a volta pra casa com o saque.
+static void testarCombateEVolta(Jogo& jogo) {
     Expedicao& exp = jogo.expedicao;
+    int ouro = jogo.reino.estoque.ouro;
     conferir(!avancar(exp, 9).empty(), "caminho que nao existe e recusado");
     exp.saque.ouro = 40;
     conferir(jogo.reino.estoque.ouro == ouro, "saque ainda nao e do reino");
@@ -446,12 +491,15 @@ static void testarExpedicao() {
     concluirExpedicao(jogo);
     conferir(jogo.reino.estoque.ouro >= ouro + saque && !exp.ativa, "voltando, o saque entra no reino");
     conferir(exp.mapa.todos == nullptr, "mapa liberado no fim");
+}
 
-    // derrota: perde o saque e os heróis ficam feridos
+// Derrota na expedição: perde o saque e os heróis ficam feridos.
+static void testarDerrotaNaExpedicao(Jogo& jogo) {
+    Expedicao& exp = jogo.expedicao;
     jogo.reino.explorouNoTurno = false;
     partirEmExpedicao(jogo);
     exp.saque.ouro = 500;
-    ouro = jogo.reino.estoque.ouro;
+    int ouro = jogo.reino.estoque.ouro;
     exp.atual->caminhos[0]->tipo = NO_COMBATE;
     avancar(exp, 0);
     for (int i = 0; i < exp.tamanho; i++) exp.grupo[i].vida = 1;
@@ -460,8 +508,11 @@ static void testarExpedicao() {
     conferir(exp.desfecho == DERROTADA, "grupo sem vida perde a expedicao");
     concluirExpedicao(jogo);
     conferir(jogo.reino.estoque.ouro == ouro && jogo.reino.feridos == 2, "derrota: saque perdido e herois feridos");
+}
 
-    // carta de recompensa
+// Carta de recompensa depois da defesa e vitória da campanha com os 6 chefes.
+static void testarRecompensaEVitoria(Jogo& jogo) {
+    Expedicao& exp = jogo.expedicao;
     jogo.batalha.vitoria = true;
     jogo.emBatalha = true;
     jogo.batalha.acabou = true;
@@ -483,11 +534,24 @@ static void testarExpedicao() {
     concluirExpedicao(jogo);
     conferir(jogo.vitoria && chefesDerrotados(jogo) == TOTAL_REINOS, "6 chefes derrotados = vitoria");
     conferir(pontuacao(jogo) >= 3000, "pontuacao conta os chefes");
+}
+
+// Expedição inteira: mapas, partida, combate, derrota e vitória da campanha.
+static void testarExpedicao() {
+    cout << "Expedicao\n";
+    testarMapas();
+    Jogo jogo;
+    iniciarJogo(jogo, 4);
+    testarPartida(jogo);
+    testarCombateEVolta(jogo);
+    testarDerrotaNaExpedicao(jogo);
+    testarRecompensaEVitoria(jogo);
     encerrarJogo(jogo);
 }
 
-int main() {
-    // os testes usam os preços de tabela, sem o ajuste de balanceamento
+// Os testes usam os preços de tabela, sem o ajuste de balanceamento,
+// pra que os números conferidos não mudem quando a economia for recalibrada.
+static void usarEconomiaDeTabela() {
     Economia deTeste;
     deTeste.custoPct = 100;
     deTeste.ondaPorTurno = 3;
@@ -502,7 +566,11 @@ int main() {
     deTeste.nivelPct = 0;
     economia() = deTeste;
     aplicarEconomia();
+}
 
+// Roda todos os testes. Retorno: 0 se passou tudo, 1 se algum falhou.
+int main() {
+    usarEconomiaDeTabela();
     testarCatalogo();
     testarPilhaEFila();
     testarDesfazerEOrdens();

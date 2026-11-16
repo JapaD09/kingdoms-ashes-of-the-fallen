@@ -41,6 +41,8 @@ int vidaDoGrupo(const Expedicao& e) {
     return maxima > 0 ? vida * 100 / maxima : 0;
 }
 
+// Bot escolhe o caminho no mapa. O esperto dá nota pra cada tipo de nó conforme a vida do grupo;
+// o casual vai no primeiro. Retorno: o índice do caminho.
 int escolherCaminho(const Expedicao& e, bool esperto) {
     int melhor = 0, melhorNota = -100;
     int vida = vidaDoGrupo(e);
@@ -62,6 +64,7 @@ int escolherCaminho(const Expedicao& e, bool esperto) {
     return melhor;
 }
 
+// Bot luta até o combate acabar. O esperto usa poção e foge quando está mal.
 void lutar(Expedicao& e, bool esperto) {
     while (e.fase == EXP_COMBATE) {
         bool alguemMal = false;
@@ -87,6 +90,7 @@ void lutar(Expedicao& e, bool esperto) {
     }
 }
 
+// Bot faz uma expedição inteira, do começo até voltar pro reino.
 void explorar(Jogo& jogo, bool esperto) {
     if (!partirEmExpedicao(jogo).empty()) return;
     Expedicao& e = jogo.expedicao;
@@ -145,6 +149,7 @@ bool jogarEmQualquerLote(Reino& r, int i) {
     return false;
 }
 
+// Joga a carta com melhor nota que dá pra pagar. Retorno: false se não tinha nada bom.
 bool jogadaEsperta(Reino& r) {
     int melhor = -1, melhorNota = 0;
     for (int i = 0; i < r.baralho.naMao; i++) {
@@ -164,6 +169,7 @@ bool jogadaEsperta(Reino& r) {
     return melhor >= 0 && jogarEmQualquerLote(r, melhor);
 }
 
+// Joga as cartas de um turno conforme o tipo de jogador. Retorno: quantas cartas jogou.
 int jogarTurno(Jogo& jogo, int jogador) {
     Reino& r = jogo.reino;
     int jogadas = 0;
@@ -196,6 +202,21 @@ int jogarTurno(Jogo& jogo, int jogador) {
     return jogadas;
 }
 
+// Entre os turnos 4 e 20: quanto ouro sobra e quantas cartas ficaram na mão
+// porque, mesmo com ouro, faltou madeira, pedra ou ferro.
+static void medirSobras(Resultado& res, const Jogo& jogo) {
+    res.turnosMedidos++;
+    res.sobraOuro += jogo.reino.estoque.ouro;
+    const Recursos& tem = jogo.reino.estoque;
+    for (int i = 0; i < jogo.reino.baralho.naMao; i++) {
+        Recursos c = custoDaCarta(jogo.reino.baralho.mao[i]);
+        bool faltaMaterial = tem.madeira < c.madeira || tem.pedra < c.pedra || tem.ferro < c.ferro;
+        if (tem.ouro >= c.ouro && faltaMaterial) res.naoPagou += 1;
+    }
+}
+
+// Joga PARTIDAS partidas inteiras com o estilo de jogador pedido.
+// Retorno: as somas de tudo que foi medido (vitórias, turnos, defesas, chefes...).
 Resultado simular(int jogador) {
     Resultado res;
     for (int semente = 1; semente <= PARTIDAS; semente++) {
@@ -205,16 +226,7 @@ Resultado simular(int jogador) {
             int turno = jogo.turno;
             res.cartasJogadas += jogarTurno(jogo, jogador);
             res.turnosJogados++;
-            if (turno >= 4 && turno <= 20) {
-                res.turnosMedidos++;
-                res.sobraOuro += jogo.reino.estoque.ouro;
-                for (int i = 0; i < jogo.reino.baralho.naMao; i++) {       // tinha ouro mas faltou material
-                    Recursos c = custoDaCarta(jogo.reino.baralho.mao[i]);
-                    const Recursos& tem = jogo.reino.estoque;
-                    bool faltaMaterial = tem.madeira < c.madeira || tem.pedra < c.pedra || tem.ferro < c.ferro;
-                    if (tem.ouro >= c.ouro && faltaMaterial) res.naoPagou += 1;
-                }
-            }
+            if (turno >= 4 && turno <= 20) medirSobras(res, jogo);
             if (turno == 3) res.chefesNoTurno3 += chefesDerrotados(jogo);
             if (jogo.vitoria) break;
             encerrarTurno(jogo);
@@ -245,10 +257,13 @@ double distancia(double valor, double meta) {
     return valor > meta ? valor - meta : meta - valor;
 }
 
+// Retorno: quanto o valor passou do limite (0 se não passou).
 double acima(double valor, double limite) {
     return valor > limite ? valor - limite : 0;
 }
 
+// Dá uma nota pra economia testada: perde pontos quanto mais longe dos alvos de vitória,
+// duração da partida e uso de cartas. Retorno: a nota (100 é perfeito).
 double nota(const Resultado r[]) {
     const Resultado& e = r[ESPERTO];
     double vEsperto = e.vitorias * 100.0 / PARTIDAS, vCasual = r[CASUAL].vitorias * 100.0 / PARTIDAS;
@@ -269,6 +284,7 @@ double nota(const Resultado r[]) {
     return n;
 }
 
+// Roda os 4 jogadores com a economia e imprime uma linha com os números e a nota.
 void mostrar(const char* nome, const Economia& e) {
     economia() = e;
     aplicarEconomia();
@@ -284,53 +300,51 @@ void mostrar(const char* nome, const Economia& e) {
            x.defesas ? x.defesasVencidas * 100.0 / x.defesas : 0.0, nota(r));
 }
 
-// Rastro: média do que acontece em cada turno (pra ver ONDE a economia aperta)
-void rastro(int jogador) {
-    const int N = 200, T = 41;
-    static double soma[T][16];
-    static int vivos[T];
-    for (auto& l : soma) for (double& v : l) v = 0;
-    for (int& v : vivos) v = 0;
-    int faltou[5] = {};
-    for (int semente = 1; semente <= N; semente++) {
-        Jogo jogo;
-        iniciarJogo(jogo, semente * 31 + jogador);
-        while (!jogo.derrota && !jogo.vitoria && jogo.turno < T) {
-            int t = jogo.turno;
-            Reino& r = jogo.reino;
-            Recursos p = previsaoDoTurno(r);
-            vivos[t]++;
-            double* s = soma[t];
-            s[0] += r.estoque.ouro; s[1] += r.estoque.madeira; s[2] += r.estoque.pedra;
-            s[3] += r.estoque.comida; s[4] += r.estoque.ferro; s[5] += p.ouro; s[6] += p.comida;
-            int jogadas = jogarTurno(jogo, jogador);
-            s[7] += jogadas;
-            for (int i = 0; i < r.baralho.naMao; i++) {          // o que sobrou na mão sem dar pra pagar
-                Recursos c = custoDaCarta(r.baralho.mao[i]);
-                if (temRecursos(r.estoque, c)) continue;
-                s[8] += 1;
-                if (r.estoque.ouro < c.ouro) faltou[0]++;
-                if (r.estoque.madeira < c.madeira) faltou[1]++;
-                if (r.estoque.pedra < c.pedra) faltou[2]++;
-                if (r.estoque.comida < c.comida) faltou[3]++;
-                if (r.estoque.ferro < c.ferro) faltou[4]++;
-            }
-            s[9] += r.estoque.ouro;                                // ouro parado depois de jogar
-            if (jogo.vitoria) break;
-            encerrarTurno(jogo);
-            s[10] += vivosDoLado(jogo.batalha, ALIADO);
-            s[11] += vivosDoLado(jogo.batalha, INIMIGO);
-            concluirBatalha(jogo);
-            s[12] += jogo.batalha.vitoria;
-            s[13] += r.vidaCastelo;
-            s[14] += r.populacao;
-            s[15] += chefesDerrotados(jogo);
-            if (jogo.escolhendoCarta) escolherRecompensa(jogo, 0);
-        }
-        encerrarJogo(jogo);
+// --- Rastro: média do que acontece em cada turno (pra ver ONDE a economia aperta) ---
+
+const int RASTRO_PARTIDAS = 200, RASTRO_TURNOS = 41, RASTRO_COLUNAS = 16;
+static double soma[RASTRO_TURNOS][RASTRO_COLUNAS];
+static int vivos[RASTRO_TURNOS];
+static int faltou[5];        // ouro, madeira, pedra, comida, ferro
+
+// Estoque e previsão no começo do turno (colunas 0 a 6).
+static void anotarInicio(double* s, const Reino& r) {
+    Recursos p = previsaoDoTurno(r);
+    s[0] += r.estoque.ouro; s[1] += r.estoque.madeira; s[2] += r.estoque.pedra;
+    s[3] += r.estoque.comida; s[4] += r.estoque.ferro; s[5] += p.ouro; s[6] += p.comida;
+}
+
+// Cartas que sobraram na mão sem dar pra pagar, e qual recurso faltou (coluna 8).
+static void anotarFaltas(double* s, const Reino& r) {
+    for (int i = 0; i < r.baralho.naMao; i++) {
+        Recursos c = custoDaCarta(r.baralho.mao[i]);
+        if (temRecursos(r.estoque, c)) continue;
+        s[8] += 1;
+        if (r.estoque.ouro < c.ouro) faltou[0]++;
+        if (r.estoque.madeira < c.madeira) faltou[1]++;
+        if (r.estoque.pedra < c.pedra) faltou[2]++;
+        if (r.estoque.comida < c.comida) faltou[3]++;
+        if (r.estoque.ferro < c.ferro) faltou[4]++;
     }
+}
+
+// Fecha o turno e anota a batalha e o estado do reino (colunas 10 a 15).
+static void anotarFimDoTurno(double* s, Jogo& jogo) {
+    encerrarTurno(jogo);
+    s[10] += vivosDoLado(jogo.batalha, ALIADO);
+    s[11] += vivosDoLado(jogo.batalha, INIMIGO);
+    concluirBatalha(jogo);
+    s[12] += jogo.batalha.vitoria;
+    s[13] += jogo.reino.vidaCastelo;
+    s[14] += jogo.reino.populacao;
+    s[15] += chefesDerrotados(jogo);
+    if (jogo.escolhendoCarta) escolherRecompensa(jogo, 0);
+}
+
+// Uma tabela com a média de cada coluna, turno a turno.
+static void imprimirRastro() {
     printf("turno vivos | ouro mad pedra comida ferro | +ouro +comida | jogou naoPagou sobraOuro | tropas inimigos vence%% castelo pop chefes\n");
-    for (int t = 1; t < T; t += (t < 12 ? 1 : 3)) {
+    for (int t = 1; t < RASTRO_TURNOS; t += (t < 12 ? 1 : 3)) {
         if (vivos[t] == 0) break;
         double v = vivos[t];
         double* s = soma[t];
@@ -340,69 +354,92 @@ void rastro(int jogador) {
     printf("faltou pra pagar carta: ouro %d  madeira %d  pedra %d  comida %d  ferro %d\n", faltou[0], faltou[1], faltou[2], faltou[3], faltou[4]);
 }
 
-int main(int argc, char** argv) {
-    if (argc >= 3 && strcmp(argv[1], "rastro") == 0) {
-        // rastro <jogador> [custo mat prod ondaT ondaD chefe base renda saque venda porInimigo]
-        Economia& e = economia();
-        int* campos[] = {&e.custoPct, &e.materiaisPct, &e.producaoPct, &e.ondaPorTurno, &e.ondaDivisor, &e.forcaPorChefe,
-                         &e.forcaBase, &e.rendaMadeira, &e.saquePct, &e.vendaPct, &e.ouroPorInimigo, &e.nivelPct};
-        for (int i = 3; i < argc && i - 3 < 12; i++) *campos[i - 3] = atoi(argv[i]);
-        aplicarEconomia();
-        rastro(atoi(argv[2]));
-        return 0;
+// Joga RASTRO_PARTIDAS partidas com o estilo pedido e imprime a média turno a turno.
+void rastro(int jogador) {
+    for (int semente = 1; semente <= RASTRO_PARTIDAS; semente++) {
+        Jogo jogo;
+        iniciarJogo(jogo, semente * 31 + jogador);
+        while (!jogo.derrota && !jogo.vitoria && jogo.turno < RASTRO_TURNOS) {
+            double* s = soma[jogo.turno];
+            vivos[jogo.turno]++;
+            anotarInicio(s, jogo.reino);
+            s[7] += jogarTurno(jogo, jogador);
+            anotarFaltas(s, jogo.reino);
+            s[9] += jogo.reino.estoque.ouro;                      // ouro parado depois de jogar
+            if (jogo.vitoria) break;
+            anotarFimDoTurno(s, jogo);
+        }
+        encerrarJogo(jogo);
     }
-    Economia atual;
-    if (argc < 2 || strcmp(argv[1], "varrer") != 0) {
-        Economia antiga;                 // como era antes da reestruturação, pra comparar
-        antiga.custoPct = 70;
-        antiga.forcaPorChefe = 45;
-        antiga.forcaBase = 0;
-        antiga.rendaMadeira = 0;
-        antiga.saquePct = 100;
-        antiga.vendaPct = 100;
-        antiga.ouroPorInimigo = 3;
-        antiga.nivelPct = 0;
-        for (int& v : antiga.chefeVidaPct) v = 100;
-        mostrar("antiga", antiga);
-        mostrar("atual", atual);
-        return 0;
-    }
-    // todas as combinações (o 2º argumento escolhe o preço, pra rodar 3 processos ao mesmo tempo)
-    const int custos[] = {70, 85, 100};
-    const int producoes[] = {130};
-    const int rendas[] = {4, 6, 8};
+    imprimirRastro();
+}
+// "rastro <jogador> [custo mat prod ondaT ondaD chefe base renda saque venda porInimigo nivel]":
+// troca os números da economia pelos da linha de comando e imprime o rastro turno a turno.
+static void modoRastro(int argc, char** argv) {
+    Economia& e = economia();
+    int* campos[] = {&e.custoPct, &e.materiaisPct, &e.producaoPct, &e.ondaPorTurno, &e.ondaDivisor, &e.forcaPorChefe,
+                     &e.forcaBase, &e.rendaMadeira, &e.saquePct, &e.vendaPct, &e.ouroPorInimigo, &e.nivelPct};
+    for (int i = 3; i < argc && i - 3 < 12; i++) *campos[i - 3] = atoi(argv[i]);
+    aplicarEconomia();
+    rastro(atoi(argv[2]));
+}
+
+// Compara a economia de antes da reestruturação com a atual, lado a lado.
+static void compararEconomias() {
+    Economia antiga;
+    antiga.custoPct = 70;
+    antiga.forcaPorChefe = 45;
+    antiga.forcaBase = 0;
+    antiga.rendaMadeira = 0;
+    antiga.saquePct = 100;
+    antiga.vendaPct = 100;
+    antiga.ouroPorInimigo = 3;
+    antiga.nivelPct = 0;
+    for (int& v : antiga.chefeVidaPct) v = 100;
+    mostrar("antiga", antiga);
+    mostrar("atual", Economia());
+}
+
+// Uma economia candidata da varredura (os campos que não variam ficam fixos).
+static Economia candidata(int custo, int renda, const int onda[2], int chefe, int base, int saque, int inim, int nivel) {
+    Economia e;
+    e.custoPct = custo;
+    e.producaoPct = 130;
+    e.materiaisPct = 150;
+    e.rendaMadeira = renda;
+    e.ondaPorTurno = onda[0];
+    e.ondaDivisor = onda[1];
+    e.forcaPorChefe = chefe;
+    e.forcaBase = base;
+    e.saquePct = saque;
+    e.vendaPct = 20;
+    e.ouroPorInimigo = inim;
+    e.nivelPct = nivel;
+    return e;
+}
+
+// "varrer [preço]": testa todas as combinações. O preço (0, 1 ou 2) permite rodar 3 processos juntos.
+static void varrerEconomias(int so) {
+    const int custos[] = {70, 85, 100}, rendas[] = {4, 6, 8}, chefes[] = {25, 30}, bases[] = {3, 4};
+    const int saques[] = {25, 40}, porInimigo[] = {1, 2}, niveis[] = {100, 150};
     const int ondas[][2] = {{3, 10}, {3, 14}, {2, 12}};
-    const int chefes[] = {25, 30};
-    const int bases[] = {3, 4};
-    const int saques[] = {25, 40};
-    const int porInimigo[] = {1, 2};
-    const int niveis[] = {100, 150};
-    int so = argc >= 3 ? atoi(argv[2]) : -1;
     for (int c = 0; c < 3; c++) {
         if (so >= 0 && so != c) continue;
-        for (int producao : producoes)
-            for (int renda : rendas)
-                for (const auto& onda : ondas)
-                    for (int chefe : chefes)
-                        for (int base : bases)
-                            for (int saque : saques)
-                                for (int inim : porInimigo)
-                                    for (int nivel : niveis) {
-                                        Economia e;
-                                        e.custoPct = custos[c];
-                                        e.producaoPct = producao;
-                                        e.materiaisPct = 150;
-                                        e.rendaMadeira = renda;
-                                        e.ondaPorTurno = onda[0];
-                                        e.ondaDivisor = onda[1];
-                                        e.forcaPorChefe = chefe;
-                                        e.forcaBase = base;
-                                        e.saquePct = saque;
-                                        e.vendaPct = 20;
-                                        e.ouroPorInimigo = inim;
-                                        e.nivelPct = nivel;
-                                        mostrar("", e);
-                                    }
+        for (int renda : rendas)
+            for (const auto& onda : ondas)
+                for (int chefe : chefes)
+                    for (int base : bases)
+                        for (int saque : saques)
+                            for (int inim : porInimigo)
+                                for (int nivel : niveis)
+                                    mostrar("", candidata(custos[c], renda, onda, chefe, base, saque, inim, nivel));
     }
+}
+
+// Sem argumento compara a economia antiga com a atual; "varrer" e "rastro" são os modos de calibrar.
+int main(int argc, char** argv) {
+    if (argc >= 3 && strcmp(argv[1], "rastro") == 0) modoRastro(argc, argv);
+    else if (argc >= 2 && strcmp(argv[1], "varrer") == 0) varrerEconomias(argc >= 3 ? atoi(argv[2]) : -1);
+    else compararEconomias();
     return 0;
 }

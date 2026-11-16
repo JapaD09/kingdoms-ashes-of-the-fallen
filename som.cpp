@@ -47,6 +47,7 @@ Sound montar(const Nota notas[], int total, float volume) {
 
 }
 
+// Liga o áudio e prepara os efeitos. Se não tiver placa de som, o jogo segue mudo.
 void iniciarSom() {
     InitAudioDevice();
     if (!IsAudioDeviceReady()) return;       // sem placa de som: o jogo segue mudo
@@ -69,6 +70,7 @@ void iniciarSom() {
     pronto = true;
 }
 
+// Descarrega os sons e fecha o áudio.
 void fecharSom() {
     if (pronto) {
         for (Sound& s : sons) UnloadSound(s);
@@ -77,11 +79,13 @@ void fecharSom() {
     pronto = false;
 }
 
+// Toca um efeito (SOM_CLIQUE, SOM_GOLPE...), se o som estiver ligado.
 void tocar(int som) {
     if (!pronto || !ligado || som < 0 || som >= TOTAL_SONS) return;
     PlaySound(sons[som]);
 }
 
+// Liga/desliga o som. Retorno: true se ficou ligado.
 bool alternarSom() {
     ligado = !ligado;
     return ligado;

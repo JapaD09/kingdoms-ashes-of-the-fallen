@@ -23,10 +23,12 @@ EstadoHerois estado;
 const Rectangle BOTAO_INVOCAR = {200, 46, 90, 18};
 const Rectangle BOTAO_FECHAR = {250, 157, 44, 13};
 
+// Retorno: o retângulo do card do herói id (grade de 3 colunas).
 Rectangle areaHeroi(int id) {
     return {26.0f + (id % 3) * 56, 36.0f + (id / 3) * 44, 52, 40};
 }
 
+// Retorno: a cor de cada raridade de herói.
 Color corDaRaridade(int raridade) {
     switch (raridade) {
         case LENDARIO: return DOURADO;
@@ -36,6 +38,7 @@ Color corDaRaridade(int raridade) {
     }
 }
 
+// Retorno: o id do herói embaixo do mouse, ou -1.
 int heroiSobMouse() {
     for (int i = 0; i < TOTAL_HEROIS; i++) {
         if (mouseSobre(areaHeroi(i))) return i;
@@ -43,6 +46,7 @@ int heroiSobMouse() {
     return -1;
 }
 
+// Desenha as estrelas do herói em fila.
 void estrelinhas(int x, int y, int quantas) {
     for (int i = 0; i < quantas; i++) {
         DrawRectangle(x + i * 4, y + 1, 3, 1, DOURADO);
@@ -50,6 +54,7 @@ void estrelinhas(int x, int y, int quantas) {
     }
 }
 
+// Card do herói: figura, nome e estrelas, ou um "?" se ele ainda não saiu no gacha.
 void desenharCartaHeroi(const Reino& reino, int id) {
     Rectangle r = areaHeroi(id);
     const ModeloHeroi& h = modeloHeroi(id);
@@ -78,6 +83,7 @@ void desenharCartaHeroi(const Reino& reino, int id) {
     if (sobre) DrawRectangleLinesEx({r.x - 1, r.y - 1, r.width + 2, r.height + 2}, 1, TEXTO_CLARO);
 }
 
+// Lista a chance de cada raridade e quantas invocações faltam pro épico garantido.
 void desenharChances(const Reino& reino) {
     desenharTexto("Chances:", 200, 72, 1, MADEIRA_ESCURA);
     for (int r = LENDARIO; r >= COMUM; r--) {
@@ -89,6 +95,7 @@ void desenharChances(const Reino& reino) {
     desenharTexto(TextFormat("Épico garantido\nem %d invocações", faltam), 200, 122, 1, PERGAMINHO_ESC);
 }
 
+// Detalhes do herói selecionado: raridade, vida, ataque, defesa e descrição.
 void desenharDetalhes(const Reino& reino, int id) {
     const ModeloHeroi& h = modeloHeroi(id);
     desenharTexto(h.nome, 200, 72, 1, VERMELHO_ESC);
@@ -116,6 +123,7 @@ void desenharRaios(int cx, int cy, Color cor) {
     }
 }
 
+// Animação do herói que acabou de sair no gacha, com brilho da cor da raridade.
 void desenharRevelacao() {
     int id = estado.revelando;
     const ModeloHeroi& h = modeloHeroi(id);
@@ -139,6 +147,7 @@ void desenharRevelacao() {
     if (t > 1.0f) textoCentralizado("clique para continuar", 170, 1, Fade(TEXTO_CLARO, 0.6f));
 }
 
+// Coloca ou tira o herói da equipe. Retorno: a mensagem pra mostrar.
 string trocarEquipe(Reino& reino, int id) {
     string problema = alternarEquipe(reino.herois, id);
     if (!problema.empty()) return problema;
@@ -148,15 +157,19 @@ string trocarEquipe(Reino& reino, int id) {
 
 }
 
+// Abre a janela de heróis com o estado limpo.
 void abrirHerois() {
     estado = EstadoHerois();
     estado.aberto = true;
 }
 
+// Retorno: true se a janela de heróis está aberta.
 bool heroisAbertos() {
     return estado.aberto;
 }
 
+// Trata os cliques da janela (invocar, escalar, fechar).
+// Retorno: mensagem pro rodapé, ou "" se não tem.
 string atualizarHerois(Reino& reino) {
     if (estado.revelando >= 0) {
         estado.tempoRevelar += GetFrameTime();
@@ -183,6 +196,7 @@ string atualizarHerois(Reino& reino) {
     return "";
 }
 
+// Desenha a janela de heróis inteira.
 void desenharHerois(const Reino& reino) {
     DrawRectangle(0, 0, VL, VA, Fade(CONTORNO, 0.5f));
     caixaComSombra({20, 22, 280, 152}, PERGAMINHO);

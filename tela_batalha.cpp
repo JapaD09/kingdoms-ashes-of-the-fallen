@@ -75,10 +75,12 @@ void ordenarParaDesenhar(const Batalha& b) {
     }
 }
 
+// Guarda a vida de cada lutador antes da rodada, pra barra só cair quando o golpe acerta.
 void guardarVidas(const Batalha& b) {
     for (int i = 0; i < b.total; i++) anim.vidaAntes[i] = b.lutadores[i].vida;
 }
 
+// Roda a próxima rodada no combate e prepara a animação dos golpes dela.
 void proximaRodada(Batalha& b) {
     guardarVidas(b);
     rodadaDeBatalha(b);
@@ -89,6 +91,7 @@ void proximaRodada(Batalha& b) {
     }
 }
 
+// Botão "pular": resolve a batalha inteira de uma vez e vai direto pro resultado.
 void pularTudo(Batalha& b) {
     while (!b.acabou) rodadaDeBatalha(b);
     b.totalGolpes = 0;
@@ -112,6 +115,7 @@ float progresso() {
     return anim.tempoRodada / TEMPO_RODADA;
 }
 
+// Retorno: true depois do momento do impacto na animação da rodada.
 bool golpeJaAcertou() {
     return anim.fase == FIM || progresso() >= MOMENTO_DO_GOLPE / TEMPO_RODADA;
 }
@@ -152,6 +156,7 @@ float brilhoDoGolpe(const Batalha& b, int i) {
     return 0;
 }
 
+// Retorno: a vida que a tela mostra pro lutador i (antiga até o golpe acertar).
 int vidaMostrada(const Batalha& b, int i) {
     return golpeJaAcertou() ? b.lutadores[i].vida : anim.vidaAntes[i];
 }
@@ -189,6 +194,7 @@ void desenharCampo(const Batalha& b) {
     }
 }
 
+// Castelo e muralha do lado esquerdo; tremem quando levam dano.
 void desenharMuralha() {
     int tremor = anim.tremor > 0 ? static_cast<int>(sinf(tempo() * 60) * 2) : 0;
     desenharComContorno(desenharCastelo, -12 + tremor, 14, 2);
@@ -203,6 +209,7 @@ void desenharMuralha() {
     DrawRectangle(CASTELO_X + tremor, 58, 1, 92, CONTORNO);
 }
 
+// Duas bandeiras do reino atacante no canto direito.
 void desenharEstandartesInimigos(const Batalha& b) {
     for (int i = 0; i < 2; i++) {
         int x = 296 + i * 10, y = 66 + i * 30;
@@ -296,6 +303,7 @@ void desenharTitulo(const Batalha& b) {
     desenharTexto(TextFormat("Rodada %d", b.rodada), 268, 22, 1, CONTORNO);
 }
 
+// Faixa "Fulano ataca!" que aparece e some no começo da batalha.
 void desenharChegada(const Batalha& b) {
     const ReinoInimigo& inimigo = reinoInimigo(b.reino);
     float t = anim.tempoFase / TEMPO_CHEGADA;
@@ -305,6 +313,7 @@ void desenharChegada(const Batalha& b) {
     textoCentralizado(inimigo.lema, 42, 1, Fade(TEXTO_CLARO, alpha));
 }
 
+// Rodapé com o tamanho dos exércitos e a vida do castelo.
 void desenharRodape(const Batalha& b, const Reino& reino) {
     DrawRectangle(0, 160, VL, 20, Fade(CONTORNO, 0.75f));
     iconeEspadas(4, 166, 1);
@@ -330,6 +339,7 @@ string quebrarAoMeio(string texto) {
     return texto;
 }
 
+// Janela de vitória ou derrota com o prêmio (ou o saque) e o resumo do turno.
 void desenharResultado(const Batalha& b, const string& resumoDoTurno) {
     DrawRectangle(0, 0, VL, VA, Fade(CONTORNO, 0.45f));
     caixaComSombra({70, 46, 180, 112}, PERGAMINHO);
@@ -362,6 +372,7 @@ void desenharResultado(const Batalha& b, const string& resumoDoTurno) {
 
 }
 
+// Zera a animação e posiciona os dois exércitos no campo.
 void comecarAnimacaoBatalha(const Batalha& batalha) {
     anim = EstadoBatalha();
     posicionarLado(batalha, ALIADO);
@@ -370,6 +381,8 @@ void comecarAnimacaoBatalha(const Batalha& batalha) {
     guardarVidas(batalha);
 }
 
+// Avança a animação e roda as rodadas no tempo certo. dt: segundos do quadro.
+// Retorno: true quando o jogador fecha a tela de resultado.
 bool atualizarTelaBatalha(Batalha& b, float dt) {
     float passo = dt * (anim.rapido ? 2.5f : 1.0f);
     if (anim.tremor > 0) anim.tremor -= dt;
@@ -398,6 +411,7 @@ bool atualizarTelaBatalha(Batalha& b, float dt) {
     return false;
 }
 
+// Desenha a batalha toda: campo, muralha, lutadores, golpes, rodapé e resultado.
 void desenharTelaBatalha(const Batalha& b, const Reino& reino, const string& resumoDoTurno) {
     desenharCampo(b);
     desenharMuralha();

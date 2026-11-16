@@ -22,19 +22,24 @@ const ReinoInimigo REINOS[TOTAL_REINOS] = {
 
 }
 
+// Retorno: os dados de um dos 6 reinos inimigos (nome e tropas).
 const ReinoInimigo& reinoInimigo(int id) {
     return REINOS[id];
 }
 
+// Retorno: a força da onda inimiga no turno; cresce com o turno (parte linear e parte quadrática).
 int poderDaOnda(int turno) {
     const Economia& e = economia();
     return 3 + turno * e.ondaPorTurno + turno * turno / e.ondaDivisor;
 }
 
+// Retorno: true a cada 6 turnos, quando o ataque vem com chefe.
 bool turnoDeChefe(int turno) {
     return turno % 6 == 0;
 }
 
+// Embaralha (Fisher-Yates) a ordem em que os 6 reinos atacam.
+// ordem: vetor que volta com os ids embaralhados.
 void sortearOrdemDosReinos(int ordem[TOTAL_REINOS]) {
     for (int i = 0; i < TOTAL_REINOS; i++) ordem[i] = i;
     for (int i = TOTAL_REINOS - 1; i > 0; i--) {

@@ -32,16 +32,20 @@ const Rectangle BOTAO_OPCAO_A = {74, 112, 84, 16};
 const Rectangle BOTAO_OPCAO_B = {162, 112, 84, 16};
 const char* NOMES_ACOES[4] = {"Atacar", "Defender", "Poção", "Fugir"};
 
+// Retorno: o retângulo do botão de cada ação do combate (atacar, defender...).
 Rectangle botaoDaAcao(int acao) {
     return {92.0f + acao * 57, 158, 54, 17};
 }
 
+// Retorno: quantos nós existem naquela camada do mapa.
 int nosNaCamada(const MapaExpedicao& mapa, int camada) {
     int total = 0;
     for (const NoMapa* no = mapa.todos; no != nullptr; no = no->proximo) total += no->camada == camada;
     return total;
 }
 
+// Retorno: o centro do nó na tela. As camadas vão da esquerda pra direita
+// e os nós de cada camada ficam centralizados na vertical.
 Vector2 lugarDoNo(const MapaExpedicao& mapa, const NoMapa* no) {
     int quantos = nosNaCamada(mapa, no->camada);
     float x = AREA_MAPA.x + 20 + no->camada * 37.0f;
@@ -49,11 +53,13 @@ Vector2 lugarDoNo(const MapaExpedicao& mapa, const NoMapa* no) {
     return {x, y};
 }
 
+// Retorno: a área clicável do nó.
 Rectangle areaDoNo(const MapaExpedicao& mapa, const NoMapa* no) {
     Vector2 p = lugarDoNo(mapa, no);
     return {p.x - 9, p.y - 9, 18, 18};
 }
 
+// Retorno: a cor do círculo de cada tipo de nó.
 Color corDoNo(int tipo) {
     switch (tipo) {
         case NO_COMBATE: return {172, 78, 62, 255};
@@ -66,6 +72,7 @@ Color corDoNo(int tipo) {
     }
 }
 
+// Desenha o ícone do tipo de nó (espadas, "?", baú...).
 void iconeDoNo(int tipo, int x, int y) {
     switch (tipo) {
         case NO_COMBATE: iconeEspadas(x, y, 1); break;
@@ -82,6 +89,7 @@ void iconeDoNo(int tipo, int x, int y) {
     }
 }
 
+// Retorno: true se dá pra ir do nó atual direto até esse.
 bool ehProximo(const Expedicao& exp, const NoMapa* no) {
     for (int i = 0; i < exp.atual->totalCaminhos; i++) {
         if (exp.atual->caminhos[i] == no) return true;
@@ -121,6 +129,7 @@ static void desenharNo(const Expedicao& exp, const NoMapa* no) {
     if (sobre) textoCentralizadoEm(nomeDoNo(no->tipo), r.x + r.width / 2, r.y + r.height + 2, CONTORNO);
 }
 
+// Desenha o mapa de papel: trilhas entre os nós, os nós e o destaque dos próximos.
 void desenharMapa(const Expedicao& exp) {
     caixaComSombra(AREA_MAPA, PAPEL_MAPA);
     for (int i = 0; i < 40; i++) {                      // manchinhas do papel
@@ -136,6 +145,7 @@ void desenharMapa(const Expedicao& exp) {
     for (const NoMapa* no = exp.mapa.todos; no != nullptr; no = no->proximo) desenharNo(exp, no);
 }
 
+// Painel da esquerda: cada herói com a vida dele e, embaixo, o saque e as poções.
 void desenharGrupo(const Expedicao& exp) {
     caixaComSombra({4, 22, 82, 152}, PERGAMINHO);
     desenharTexto("Grupo", 9, 26, 1, VERMELHO_ESC);
@@ -160,6 +170,7 @@ void desenharGrupo(const Expedicao& exp) {
     desenharTexto(TextFormat("Poções: %d", exp.pocoes), 9, 160, 1, MADEIRA_ESCURA);
 }
 
+// Barra de cima: bandeira e nome da região e quantos chefes já caíram.
 void desenharTopo(const Jogo& jogo) {
     const Expedicao& exp = jogo.expedicao;
     DrawRectangle(0, 0, VL, 19, MADEIRA_ESCURA);
@@ -170,6 +181,7 @@ void desenharTopo(const Jogo& jogo) {
     desenharTextoSombra(chefes, VL - 6 - larguraTexto(chefes, 1), 6, 1, TEXTO_CLARO);
 }
 
+// Janela de texto no meio da tela (eventos e avisos). titulo pode ser nullptr.
 void caixaDeTexto(const char* titulo, const string& texto, int altura) {
     DrawRectangle(0, 20, VL, VA - 20, Fade(CONTORNO, 0.45f));
     caixaComSombra({60, 50, 200, static_cast<float>(altura)}, PERGAMINHO);
@@ -192,23 +204,27 @@ Vector2 lugarDoHeroi(int i) {
     return {124.0f + (i % 2) * 20, 82.0f + i * 22};
 }
 
+// Retorno: onde o inimigo i fica no campo. O chefe tem lugar fixo.
 Vector2 lugarDoInimigo(int i, bool chefe) {
     if (chefe) return {268, 112};
     return {222.0f + (i % 2) * 22, 78.0f + i * 22};
 }
 
+// Retorno: o visual do inimigo, um pouco maior que na batalha do reino.
 Aparencia aparenciaDoInimigo(const Expedicao& exp, const InimigoExp& inimigo) {
     Aparencia a = aparenciaInimigo(exp.regiao, inimigo.nivel);
     if (a.especial != DRAGAO) a.tamanho = a.tamanho == 1 ? 2 : 3;
     return a;
 }
 
+// Retorno: a área clicável do inimigo i (pra escolher o alvo).
 Rectangle areaDoInimigo(const Expedicao& exp, int i) {
     Vector2 p = lugarDoInimigo(i, exp.inimigos[i].chefe);
     int t = aparenciaDoInimigo(exp, exp.inimigos[i]).tamanho;
     return {p.x - 6.0f * t, p.y - 15.0f * t, 12.0f * t, 16.0f * t};
 }
 
+// Número de dano que sobe e some em cima de quem apanhou.
 void numeroDeDano(Vector2 p, int dano) {
     if (dano <= 0 || estado.tempoDano > 0.9f) return;
     float t = estado.tempoDano / 0.9f;
@@ -278,6 +294,7 @@ static void desenharInimigoNaLuta(const Expedicao& exp, int i, bool brilha) {
     numeroDeDano(p, exp.danoNoInimigo[i]);
 }
 
+// Desenha o combate: campo, heróis, inimigos e os botões de ação.
 void desenharCombate(const Expedicao& exp) {
     desenharCampoDeLuta();
     bool brilha = estado.tempoDano < 0.15f;
@@ -290,11 +307,13 @@ void desenharCombate(const Expedicao& exp) {
     }
 }
 
+// Faixa com a mensagem atual da expedição.
 void desenharMensagem(const Expedicao& exp) {
     caixa({90, 147, 226, 10}, Fade(CONTORNO, 0.8f), Fade(CONTORNO, 0.6f));
     desenharTexto(exp.mensagem.c_str(), 94, 148, 1, TEXTO_CLARO);
 }
 
+// Retorno: o primeiro inimigo vivo (vira o alvo quando o antigo morre).
 int primeiroVivo(const Expedicao& exp) {
     for (int i = 0; i < exp.totalInimigos; i++) {
         if (exp.inimigos[i].vida > 0) return i;
@@ -302,6 +321,7 @@ int primeiroVivo(const Expedicao& exp) {
     return 0;
 }
 
+// Faz a ação no combate, toca o som e reinicia a animação de dano se a rodada passou.
 void agir(Expedicao& exp, int acao) {
     agirNoCombate(exp, acao, estado.alvo);
     tocar(acao == ATACAR ? SOM_GOLPE : SOM_CLIQUE);
@@ -312,6 +332,7 @@ void agir(Expedicao& exp, int acao) {
     if (exp.fase == EXP_COMBATE && exp.inimigos[estado.alvo].vida <= 0) estado.alvo = primeiroVivo(exp);
 }
 
+// Cliques no combate: escolher alvo e apertar os botões de ação.
 void cliquesDoCombate(Expedicao& exp) {
     for (int i = 0; i < exp.totalInimigos; i++) {
         if (exp.inimigos[i].vida > 0 && clicouEm(areaDoInimigo(exp, i))) estado.alvo = i;
@@ -325,6 +346,7 @@ void cliquesDoCombate(Expedicao& exp) {
     }
 }
 
+// Cliques no mapa: voltar pro reino ou andar pra um nó vizinho.
 void cliquesDoMapa(Expedicao& exp) {
     if (clicouEm(BOTAO_VOLTAR)) {
         voltarAoReino(exp);
@@ -345,10 +367,13 @@ void cliquesDoMapa(Expedicao& exp) {
 
 }
 
+// Zera o estado da tela antes de uma expedição nova.
 void comecarTelaExpedicao() {
     estado = EstadoTela();
 }
 
+// Um quadro da expedição conforme a fase (mapa, evento, combate, aviso, fim).
+// Retorno: true quando a expedição terminou e o jogador confirmou.
 bool atualizarTelaExpedicao(Jogo& jogo) {
     Expedicao& exp = jogo.expedicao;
     estado.tempoDano += GetFrameTime();
@@ -389,6 +414,7 @@ static void desenharFimDaExpedicao(const Expedicao& exp) {
     botaoPrincipal(BOTAO_CONTINUAR, "Pro reino");
 }
 
+// Desenha a tela da expedição na fase atual.
 void desenharTelaExpedicao(const Jogo& jogo) {
     const Expedicao& exp = jogo.expedicao;
     DrawRectangle(0, 0, VL, VA, FUNDO_EXPEDICAO);

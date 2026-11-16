@@ -125,6 +125,7 @@ struct Letra {
     Acento acento;
 };
 
+// Retorno: o desenho da letra na fonte, ou nullptr se ela não existe.
 const Glifo* acharGlifo(char letra) {
     for (int i = 0; i < TOTAL_GLIFOS; i++) {
         if (GLIFOS[i].letra == letra) return &GLIFOS[i];
@@ -145,6 +146,7 @@ int lerCodigo(const char*& p) {
     return '?';
 }
 
+// Converte um código Unicode numa letra da fonte. Letra acentuada vira a base mais o acento.
 Letra traduzir(int codigo) {
     if (codigo == ' ') return {nullptr, ' ', NENHUM};
     if (codigo < 0x80) {
@@ -160,6 +162,7 @@ Letra traduzir(int codigo) {
     return {acharGlifo('?'), '?', NENHUM};
 }
 
+// Retorno: a largura real da letra (a coluna mais à direita pintada + 1).
 int larguraGlifo(const Glifo* g) {
     if (g == nullptr) return 3;
     int largura = 1;
@@ -211,6 +214,7 @@ void desenharGlifo(const Letra& letra, int x, int y, int e, Color cima, Color ba
     }
 }
 
+// Desenha o acento em cima da letra (mais alto nas maiúsculas). e: escala.
 void desenharAcento(const Letra& letra, int x, int y, int e, int largura, Color cor) {
     bool maiuscula = letra.base >= 'A' && letra.base <= 'Z';
     int cx = x + (largura / 2) * e;
@@ -228,6 +232,7 @@ void desenharAcento(const Letra& letra, int x, int y, int e, int largura, Color 
     }
 }
 
+// Escreve o texto (UTF-8) pixel a pixel, com a metade de cima numa cor e a de baixo em outra.
 void desenharDuasCores(const char* texto, int x, int y, int e, Color cima, Color baixo) {
     int cx = x;
     const char* p = texto;
@@ -248,6 +253,7 @@ void desenharDuasCores(const char* texto, int x, int y, int e, Color cima, Color
 
 }
 
+// Retorno: a largura em pixels da linha mais comprida do texto.
 int larguraTexto(const char* texto, int escala) {
     int maior = 0, atual = 0;
     const char* p = texto;
@@ -263,10 +269,12 @@ int larguraTexto(const char* texto, int escala) {
     return maior * escala;
 }
 
+// Escreve o texto numa cor só.
 void desenharTexto(const char* texto, int x, int y, int escala, Color cor) {
     desenharDuasCores(texto, x, y, escala, cor, cor);
 }
 
+// Escreve o texto com uma sombra escura um pixel abaixo.
 void desenharTextoSombra(const char* texto, int x, int y, int escala, Color cor) {
     Color sombra = {38, 26, 22, cor.a};
     desenharDuasCores(texto, x, y + escala, escala, sombra, sombra);

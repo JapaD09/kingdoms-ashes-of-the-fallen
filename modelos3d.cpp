@@ -17,6 +17,7 @@ const Color CASCA_BETULA = {226, 222, 208, 255};
 // conforme o lado pra onde olha (o sol vem do sul, meio de cima).
 const float LUZ_TOPO = 1.08f, LUZ_SUL = 0.9f, LUZ_OESTE = 0.8f, LUZ_LESTE = 0.7f, LUZ_NORTE = 0.58f;
 
+// Retorno: a cor multiplicada pela luz da face (topo mais claro, lados mais escuros).
 Color sombrear(Color cor, float luz) {
     auto canal = [luz](unsigned char v) {
         float r = v * luz;
@@ -88,6 +89,7 @@ void copa(float raio, float y, Color escuro, Color medio, Color claro) {
     bloco(-miolo, -miolo, 2 * miolo, 2 * miolo, y + r * 1.45f, r * 0.4f, claro);
 }
 
+// Mastro com bandeira balançando em cima do prédio.
 void mastro(float x, float z, float y, float h, Color pano, float tempo) {
     bloco(x - 0.4f, z - 0.4f, 0.8f, 0.8f, y, h, CONTORNO);
     float onda = sinf(tempo * 4) * 0.5f;
@@ -100,11 +102,13 @@ void porta(float x, float z, float w, float h, Color cor) {
     bloco(x, z, w, 0.3f, 0, h, cor);
 }
 
+// Janela com moldura de madeira na parede da frente.
 void janelinha(float x, float z, float y, Color cor = JANELA) {
     bloco(x - 0.3f, z, 2.6f, 0.25f, y - 0.3f, 2.6f, MADEIRA_ESCURA);
     bloco(x, z + 0.1f, 2, 0.25f, y, 2, cor);
 }
 
+// Os dentinhos em cima de muralha e torre, nas quatro bordas.
 void ameias(float x, float z, float w, float d, float y, Color cor) {
     for (float i = 0; i + 1.5f <= w; i += 3) {
         bloco(x + i, z, 1.5f, 1.2f, y, 1.5f, cor);
@@ -112,6 +116,7 @@ void ameias(float x, float z, float w, float d, float y, Color cor) {
     }
 }
 
+// Modelo 3D da fazenda: terra arada com fileiras de plantação.
 void fazenda() {
     bloco(-9, -8, 18, 16, 0, 0.8f, TERRA);
     for (float z = -6.5f; z < 7; z += 4) {
@@ -126,6 +131,7 @@ void fazenda() {
     bloco(-9.5f, 8.0f, 19, 0.3f, 2, 0.5f, MADEIRA_ESCURA);
 }
 
+// Modelo 3D da serraria.
 void serraria() {
     bloco(-9, -4, 12, 9, 0, 8, MADEIRA);
     telhado(-10, -5, 14, 11, 8, 5, TELHADO_VERM);
@@ -139,6 +145,7 @@ void serraria() {
     bloco(10.9f, 2.6f, 0.3f, 2, 2.9f, 1.8f, PERGAMINHO);
 }
 
+// Modelo 3D do quartel, com bandeira.
 void quartel(float tempo) {
     bloco(-9, -5, 16, 10, 0, 9, PERGAMINHO);
     telhado(-10, -6, 18, 12, 9, 5, TELHADO_VERM);
@@ -148,6 +155,7 @@ void quartel(float tempo) {
     mastro(9, 4, 0, 18, TELHADO_AZUL, tempo);
 }
 
+// Modelo 3D do trecho de muralha.
 void muralha() {
     bloco(-10, -2.5f, 20, 5, 0, 11, PEDRA);
     bloco(-10.3f, -2.8f, 20.6f, 5.6f, 3.5f, 0.6f, PEDRA_CLARA);
@@ -155,6 +163,7 @@ void muralha() {
     ameias(-10, -2.5f, 20, 5, 11, PEDRA);
 }
 
+// Modelo 3D da oficina, com chaminé.
 void oficina() {
     bloco(-9, -5, 13, 10, 0, 9, PEDRA);
     telhado(-10, -6, 15, 12, 9, 4, MADEIRA_ESCURA);
@@ -167,6 +176,7 @@ void oficina() {
     bloco(5.2f, 2, 4.6f, 3, 1.6f, 1.4f, CONTORNO);
 }
 
+// Modelo 3D da mina: morrinho de pedra com a entrada.
 void mina() {
     bloco(-9, -7, 18, 13, 0, 8, PEDRA);
     bloco(-7, -6, 14, 10, 8, 3, PEDRA);
@@ -182,6 +192,7 @@ void mina() {
     bloco(6, 8.3f, 1, 1, 3.6f, 0.7f, DOURADO);
 }
 
+// Modelo 3D do mercado: barraca com toldo.
 void mercado() {
     bloco(-8, -1, 16, 5, 0, 5, MADEIRA);
     bloco(-8.3f, -1.3f, 16.6f, 5.6f, 5, 0.6f, MADEIRA_ESCURA);
@@ -198,6 +209,7 @@ void mercado() {
     bloco(6, 5, 3, 3, 0, 2.5f, PERGAMINHO_ESC);
 }
 
+// Modelo 3D da casa (estilo enxaimel).
 void casa() {
     bloco(-6, -5, 12, 10, 0, 8, PERGAMINHO);
     bloco(-6.2f, -5.2f, 0.8f, 10.4f, 0, 8, MADEIRA_ESCURA);  // vigas do enxaimel
@@ -213,6 +225,7 @@ void casa() {
     bloco(3.6f, 5.6f, 0.6f, 0.6f, 4, 0.7f, CORACAO_CLARO);
 }
 
+// Modelo 3D da torre de defesa.
 void torre(float tempo) {
     bloco(-4, -4, 8, 8, 0, 15, PEDRA);
     bloco(-4.3f, -4.3f, 8.6f, 8.6f, 7, 0.7f, PEDRA_CLARA);
@@ -225,6 +238,7 @@ void torre(float tempo) {
     mastro(0, 0, 17, 7, TELHADO_VERM, tempo);
 }
 
+// Modelo 3D da arquearia.
 void arquearia() {
     bloco(-10, -4, 9, 8, 0, 8, MADEIRA);
     telhado(-11, -5, 11, 10, 8, 4, FOLHA);
@@ -238,6 +252,7 @@ void arquearia() {
     bloco(6.3f, 3.4f, 0.5f, 4, 7.8f, 0.5f, MADEIRA);         // flecha cravada
 }
 
+// Modelo 3D do estábulo.
 void estabulo() {
     bloco(-8, -5, 16, 10, 0, 10, TELHADO_VERM);
     bloco(-8.2f, -5.2f, 16.4f, 10.4f, 0, 2, VERMELHO_ESC);
@@ -251,6 +266,7 @@ void estabulo() {
     bloco(6, 6.8f, 4, 0.5f, 1.2f, 0.5f, DOURADO_ESCURO);
 }
 
+// Modelo 3D da torre arcana: torre roxa de telhado pontudo e janelas de cristal.
 void torreArcana(float tempo) {
     bloco(-4.5f, -4.5f, 9, 9, 0, 2, PEDRA);
     bloco(-3.5f, -3.5f, 7, 7, 2, 12, ROXO);
@@ -264,6 +280,7 @@ void torreArcana(float tempo) {
     bloco(-0.5f, -0.5f, 1, 1, 24.3f + flutua, 3.8f, TEXTO_CLARO);
 }
 
+// Modelo 3D do castelo: corpo central e quatro torres nos cantos.
 void castelo(float tempo) {
     bloco(-8, -6, 16, 12, 0, 10, PEDRA);
     ameias(-8, -6, 16, 12, 10, PEDRA);
@@ -283,6 +300,7 @@ void castelo(float tempo) {
     mastro(0, 0, 24, 6, TELHADO_VERM, tempo);
 }
 
+// Posiciona e escala o modelo no lugar dele. cresce (0 a 1) é a animação de construção.
 void comecarModelo(Vector3 base, float cresce) {
     float escala = 1.0f / UNIDADES_POR_METRO;
     rlSetTexture(rlGetTextureIdDefault());   // senão as faces saem pintadas com a textura do chão
@@ -293,6 +311,7 @@ void comecarModelo(Vector3 base, float cresce) {
 
 }
 
+// Desenha o prédio do tipo pedido em 3D. alfa < 1 deixa transparente (prévia da carta).
 void desenharPredio3D(int tipo, Vector3 base, float cresce, float alfa, float tempo) {
     alfaAtual = alfa;
     comecarModelo(base, cresce);
@@ -314,6 +333,7 @@ void desenharPredio3D(int tipo, Vector3 base, float cresce, float alfa, float te
     alfaAtual = 1.0f;
 }
 
+// Desenha o castelo em 3D na posição base.
 void desenharCastelo3D(Vector3 base, float tempo) {
     comecarModelo(base, 1);
     castelo(tempo);
@@ -347,6 +367,7 @@ static void arvoreSeca3D(int tamanho) {
     bloco(2, -0.3f, 0.6f, 0.6f, altura - 1.5f, 2, TRONCO_SECO);
 }
 
+// Árvore 3D. tipo escolhe o formato, tom as cores e vento balança a copa.
 void desenharArvore3D(int tipo, int tamanho, int tom, Vector3 base, float vento) {
     Color escuro, medio, claro;
     coresDaFolha(tom, escuro, medio, claro);

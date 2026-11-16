@@ -21,12 +21,14 @@ Lutador criarTropa(int tropa, int vida, int ataque, int defesa, bool distancia, 
     return l;
 }
 
+// Coloca um lutador na batalha. Retorno: false se o vetor de lutadores já está cheio.
 bool adicionar(Batalha& b, const Lutador& l) {
     if (b.total >= MAX_LUTADORES) return false;
     b.lutadores[b.total++] = l;
     return true;
 }
 
+// Retorno: quantos lutadores do lado (ALIADO ou INIMIGO) entraram na batalha, vivos ou não.
 int contarDoLado(const Batalha& b, int lado) {
     int total = 0;
     for (int i = 0; i < b.total; i++) {
@@ -42,18 +44,10 @@ void bonusGerais(const Reino& reino, int& ataque, int& vida) {
     for (NoEdificio* no = reino.edificios.primeiro; no != nullptr; no = no->proximo) {
         if (no->dados.tipo == OFICINA) ataque += no->dados.nivel;
     }
-    for (int h = 0; h < TOTAL_HEROIS; h++) {
-        if (!reino.herois.naEquipe[h] || reino.feridos > 0) continue;
-        int poder = modeloHeroi(h).poder;
-        if (poder == AURA_ATAQUE) ataque += 1;
-        if (poder == AURA_VIDA) vida += 5;
-        if (poder == AURA_REAL) {
-            ataque += 2;
-            vida += 5;
-        }
-    }
+    if (reino.feridos == 0) somarAuras(reino.herois, ataque, vida);   // ferido não dá aura
 }
 
+// Põe um aliado já com os bônus somados, se ainda couber no lado aliado.
 void colocarAliado(Batalha& b, Lutador l, int ataqueExtra, int vidaExtra) {
     if (contarDoLado(b, ALIADO) >= MAX_ALIADOS) return;
     l.lado = ALIADO;
@@ -63,6 +57,7 @@ void colocarAliado(Batalha& b, Lutador l, int ataqueExtra, int vidaExtra) {
     adicionar(b, l);
 }
 
+// Monta o nosso lado: heróis da equipe, tropas de cada prédio e os guardas do castelo.
 void montarAliados(Batalha& b, const Reino& reino) {
     int ataque, vida;
     bonusGerais(reino, ataque, vida);
@@ -93,6 +88,8 @@ void montarAliados(Batalha& b, const Reino& reino) {
     for (int i = 0; i < reino.soldados; i++) colocarAliado(b, tropaBase(GUARDA), ataque, vida);
 }
 
+// Gera a onda inimiga gastando o "poder" do turno em tropas fracas, médias e fortes.
+// A cada 6 turnos vem um chefe com vida x4.
 void montarOnda(Batalha& b, int reino, int turno) {
     const ReinoInimigo& inimigo = reinoInimigo(reino);
     int ciclo = (turno - 1) / 6;                  // a cada volta nos 6 reinos, ficam mais fortes
@@ -134,11 +131,14 @@ int sortearAlvo(const Batalha& b, int lado) {
     return total == 0 ? -1 : vivos[sortear(0, total - 1)];
 }
 
+// Guarda o golpe da rodada pra tela animar depois (dano negativo = cura).
 void anotarGolpe(Batalha& b, int atacante, int alvo, int dano) {
     if (b.totalGolpes >= MAX_GOLPES) return;
     b.golpes[b.totalGolpes++] = {atacante, alvo, dano};
 }
 
+// Aplica o dano no alvo e anota o golpe. Vampiro recupera metade do dano causado.
+// atacante: índice do lutador, ou -1 quando é a torre.
 void ferir(Batalha& b, int atacante, int alvo, int ataque) {
     Lutador& vitima = b.lutadores[alvo];
     int dano = calcularDano(ataque, vitima.defesa);
@@ -173,6 +173,7 @@ void curar(Batalha& b, int curandeiro) {
     anotarGolpe(b, curandeiro, melhor, -quanto);
 }
 
+// O lutador i bate em alvos sorteados do outro lado (mais de um se tiver "alvos" > 1).
 void atacar(Batalha& b, int i, int ladoAlvo) {
     for (int k = 0; k < b.lutadores[i].alvos; k++) {
         int alvo = sortearAlvo(b, ladoAlvo);
@@ -181,6 +182,7 @@ void atacar(Batalha& b, int i, int ladoAlvo) {
     }
 }
 
+// Turno do nosso lado: primeiro as torres atiram, depois cada aliado vivo cura e/ou ataca.
 void vezDosAliados(Batalha& b) {
     for (int t = 0; t < b.tirosDeTorre; t++) {
         int alvo = sortearAlvo(b, INIMIGO);
@@ -217,11 +219,13 @@ void vezDosInimigos(Batalha& b) {
 
 }
 
+// Retorno: ataque menos defesa, mas nunca menos que 1.
 int calcularDano(int ataque, int defesa) {
     int dano = ataque - defesa;
     return dano < 1 ? 1 : dano;
 }
 
+// Retorno: os status base de cada tipo de tropa (sem bônus de prédio ou herói).
 Lutador tropaBase(int tropa) {
     switch (tropa) {
         case SOLDADO: return criarTropa(SOLDADO, 12, 3, 1, false, 1);
@@ -232,6 +236,7 @@ Lutador tropaBase(int tropa) {
     }
 }
 
+// Prepara a batalha do turno: defesa do castelo, tiros das torres, aliados e a onda inimiga.
 void montarBatalha(Batalha& batalha, const Reino& reino, int reinoInimigo, int turno) {
     batalha = Batalha();
     batalha.reino = reinoInimigo;
@@ -244,6 +249,7 @@ void montarBatalha(Batalha& batalha, const Reino& reino, int reinoInimigo, int t
     montarOnda(batalha, reinoInimigo, turno);
 }
 
+// Retorno: quantos lutadores daquele lado ainda estão de pé.
 int vivosDoLado(const Batalha& batalha, int lado) {
     int total = 0;
     for (int i = 0; i < batalha.total; i++) {
@@ -252,6 +258,8 @@ int vivosDoLado(const Batalha& batalha, int lado) {
     return total;
 }
 
+// Roda uma rodada (aliados e depois inimigos) e marca o fim se um lado zerou
+// ou se passou do limite de rodadas.
 void rodadaDeBatalha(Batalha& b) {
     if (b.acabou) return;
     b.totalGolpes = 0;
@@ -270,6 +278,7 @@ void rodadaDeBatalha(Batalha& b) {
     }
 }
 
+// Calcula o prêmio da vitória. ouro e cristais voltam pelos parâmetros de referência.
 void recompensaDaBatalha(const Batalha& b, int& ouro, int& cristais) {
     ouro = economia().ouroPorVitoria + economia().ouroPorInimigo * contarDoLado(b, INIMIGO);
     cristais = 2 + b.turno / 4 + (turnoDeChefe(b.turno) ? 3 : 0);
@@ -287,6 +296,8 @@ static int guardasPerdidos(const Batalha& b) {
     return naBatalha - vivos;
 }
 
+// Passa o resultado pro reino: guardas mortos, dano no castelo e prêmio ou saque.
+// Retorno: a frase que aparece pro jogador.
 string aplicarResultado(const Batalha& b, Reino& reino) {
     int perdidos = guardasPerdidos(b);
     reino.soldados -= perdidos;

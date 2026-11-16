@@ -6,6 +6,7 @@
 #include "jogo.h"
 #include "interface.h"
 
+// Ponto de entrada: abre a janela e repete atualizar/desenhar até o jogador sair.
 int main() {
     Jogo jogo;
     iniciarJogo(jogo, static_cast<unsigned>(time(nullptr)));   // cada partida começa diferente

@@ -25,6 +25,8 @@ const TextoEvento EVENTOS[TOTAL_EVENTOS] = {
     {"Acampamento inimigo", "Batedores dormem ao lado de um baú.", "Atacar", "Evitar"},
 };
 
+// Cria um nó do mapa com new e encadeia na lista "todos" (pra liberar tudo depois).
+// Retorno: o nó novo.
 NoMapa* criarNo(MapaExpedicao& mapa, int tipo, int camada, int posicao) {
     NoMapa* no = new NoMapa;
     no->id = mapa.total++;
@@ -36,6 +38,7 @@ NoMapa* criarNo(MapaExpedicao& mapa, int tipo, int camada, int posicao) {
     return no;
 }
 
+// Retorno: true se já existe a aresta de -> ate.
 bool jaLigado(const NoMapa* de, const NoMapa* ate) {
     for (int i = 0; i < de->totalCaminhos; i++) {
         if (de->caminhos[i] == ate) return true;
@@ -43,6 +46,7 @@ bool jaLigado(const NoMapa* de, const NoMapa* ate) {
     return false;
 }
 
+// Cria a aresta de -> ate no grafo, sem repetir e sem passar do limite de caminhos.
 void ligar(NoMapa* de, NoMapa* ate) {
     if (de->totalCaminhos >= MAX_CAMINHOS || jaLigado(de, ate)) return;
     de->caminhos[de->totalCaminhos++] = ate;
@@ -56,6 +60,7 @@ int sortearTipo(int camada) {
     return rolagem <= 40 ? NO_COMBATE : rolagem <= 65 ? NO_EVENTO : rolagem <= 82 ? NO_TESOURO : NO_ELITE;
 }
 
+// Retorno: um inimigo da região, mais forte conforme a dificuldade escolhida.
 InimigoExp criarInimigo(int regiao, int nivel, int dificuldade) {
     const TropaInimiga& t = reinoInimigo(regiao).tropas[nivel];
     dificuldade += economia().forcaBase;
@@ -67,11 +72,13 @@ InimigoExp criarInimigo(int regiao, int nivel, int dificuldade) {
     return i;
 }
 
+// Limpa os números de dano da rodada anterior (são os que a tela mostra).
 void zerarDanos(Expedicao& exp) {
     for (int& d : exp.danoNoHeroi) d = 0;
     for (int& d : exp.danoNoInimigo) d = 0;
 }
 
+// Monta os inimigos do nó (comum, elite ou chefe) e muda a fase pra combate.
 void comecarCombate(Expedicao& exp, int tipoNo) {
     exp.totalInimigos = 0;
     exp.defendendo = false;
@@ -115,6 +122,7 @@ int sortearItem(const NoArvore* catalogo, int raridadeMaxima, int raridadeMinima
     return quantos == 0 ? -1 : candidatos[sortear(0, quantos - 1)];
 }
 
+// Retorno: o nome do item buscando na árvore do catálogo ("item" se não achar).
 string nomeDoItem(const NoArvore* catalogo, int id) {
     int comparacoes = 0;
     const Item* item = buscarItem(catalogo, id, comparacoes);
@@ -129,6 +137,7 @@ string acharItem(Expedicao& exp, int raridadeMaxima, int raridadeMinima = 1) {
     return nomeDoItem(exp.catalogo, id);
 }
 
+// Mostra uma mensagem e espera o jogador clicar em continuar.
 void avisar(Expedicao& exp, const string& texto) {
     exp.mensagem = texto;
     exp.fase = EXP_AVISO;
@@ -139,6 +148,7 @@ int ouroDoSaque(int valor) {
     return valor * economia().saquePct / 100;
 }
 
+// Nó de tesouro: ouro, madeira, pedra, às vezes item e cristais.
 void abrirTesouro(Expedicao& exp) {
     int ouro = ouroDoSaque(sortear(30, 50) + 5 * exp.dificuldade);
     int madeira = sortear(10, 18), pedra = sortear(6, 12);
@@ -155,6 +165,7 @@ void abrirTesouro(Expedicao& exp) {
     avisar(exp, texto + ".");
 }
 
+// Acampamento: cada herói vivo recupera 40% da vida máxima.
 void descansar(Expedicao& exp) {
     for (int i = 0; i < exp.tamanho; i++) {
         Explorador& e = exp.grupo[i];
@@ -165,6 +176,7 @@ void descansar(Expedicao& exp) {
     avisar(exp, "Acampamento: o grupo descansou e recuperou as forças.");
 }
 
+// Tira vida de todo o grupo por causa de um evento, mas deixa no mínimo 1.
 void machucarTodos(Expedicao& exp, int dano) {
     for (int i = 0; i < exp.tamanho; i++) {
         Explorador& e = exp.grupo[i];
@@ -173,6 +185,7 @@ void machucarTodos(Expedicao& exp, int dano) {
     }
 }
 
+// Prêmio depois de vencer o combate do nó. O chefe dá mais e encerra a região.
 void recompensar(Expedicao& exp) {
     int tipo = exp.atual->tipo;
     int ouro = ouroDoSaque(sortear(12, 22) + 6 * exp.dificuldade + exp.bonusDoCombate);
@@ -211,6 +224,7 @@ int alvoVivo(const Expedicao& exp, int alvo) {
     return -1;
 }
 
+// Aplica o golpe de um herói no inimigo alvo. Vampiro se cura com metade do dano.
 void ferirInimigo(Expedicao& exp, int alvo, int ataque, Explorador& quem) {
     InimigoExp& inimigo = exp.inimigos[alvo];
     int dano = calcularDano(ataque, inimigo.defesa);
@@ -253,6 +267,7 @@ void curasDoGrupo(Expedicao& exp) {
     }
 }
 
+// Cada inimigo vivo ataca um herói sorteado. Se o grupo defendeu, o dano cai pela metade.
 void vezDosInimigos(Expedicao& exp) {
     for (int i = 0; i < exp.totalInimigos; i++) {
         if (exp.inimigos[i].vida <= 0) continue;
@@ -272,6 +287,8 @@ void vezDosInimigos(Expedicao& exp) {
     }
 }
 
+// Gasta uma poção e cura 12 de vida de cada herói vivo.
+// Retorno: false se não tinha poção.
 bool usarPocao(Expedicao& exp) {
     if (exp.pocoes <= 0) return false;
     exp.pocoes--;
@@ -283,18 +300,10 @@ bool usarPocao(Expedicao& exp) {
     return true;
 }
 
+// Copia os heróis da equipe pro grupo da expedição, já com auras e bônus do reino.
 void montarGrupo(Expedicao& exp, const Reino& reino) {
     int ataqueExtra = bonusAtaqueHerois(reino), vidaExtra = bonusVidaHerois(reino);
-    for (int h = 0; h < TOTAL_HEROIS; h++) {            // auras valem pro grupo todo
-        if (!reino.herois.naEquipe[h]) continue;
-        int poder = modeloHeroi(h).poder;
-        if (poder == AURA_ATAQUE) ataqueExtra += 1;
-        if (poder == AURA_VIDA) vidaExtra += 5;
-        if (poder == AURA_REAL) {
-            ataqueExtra += 2;
-            vidaExtra += 5;
-        }
-    }
+    somarAuras(reino.herois, ataqueExtra, vidaExtra);       // auras valem pro grupo todo
     exp.tamanho = 0;
     for (int h = 0; h < TOTAL_HEROIS && exp.tamanho < MAX_GRUPO; h++) {
         if (!reino.herois.naEquipe[h]) continue;
@@ -338,6 +347,7 @@ const char* tituloDoEvento(int evento) { return EVENTOS[evento].titulo; }
 const char* textoDoEvento(int evento) { return EVENTOS[evento].texto; }
 const char* escolhaDoEvento(int evento, int opcao) { return opcao == 0 ? EVENTOS[evento].arriscar : EVENTOS[evento].seguro; }
 
+// Retorno: o nome do tipo de nó pra escrever no mapa.
 const char* nomeDoNo(int tipo) {
     switch (tipo) {
         case NO_ENTRADA: return "Entrada";
@@ -367,6 +377,7 @@ static void ligarCamadas(NoMapa* daqui[], int nDaqui, NoMapa* dali[], int nDali)
     }
 }
 
+// Gera o grafo da expedição em camadas: entrada, 2 ou 3 nós por camada no meio e o chefe no fim.
 void gerarMapa(MapaExpedicao& mapa) {
     liberarMapa(mapa);
     NoMapa* camadas[CAMADAS][MAX_CAMINHOS] = {};
@@ -387,6 +398,7 @@ void gerarMapa(MapaExpedicao& mapa) {
     mapa.entrada->visitado = true;
 }
 
+// Percorre a lista de nós dando delete em cada um e zera o mapa.
 void liberarMapa(MapaExpedicao& mapa) {
     NoMapa* no = mapa.todos;
     while (no != nullptr) {
@@ -397,6 +409,8 @@ void liberarMapa(MapaExpedicao& mapa) {
     mapa = MapaExpedicao();
 }
 
+// Busca em profundidade (recursiva) no grafo. visitados evita andar em círculo.
+// Retorno: true se dá pra chegar de "de" até "ate".
 bool existeCaminho(const NoMapa* de, const NoMapa* ate, bool visitados[]) {
     if (de == nullptr || ate == nullptr) return false;
     if (de == ate) return true;
@@ -408,6 +422,7 @@ bool existeCaminho(const NoMapa* de, const NoMapa* ate, bool visitados[]) {
     return false;
 }
 
+// Confere se todo nó é alcançável da entrada e chega até o chefe (usado nos testes).
 bool mapaValido(const MapaExpedicao& mapa) {
     if (mapa.entrada == nullptr || mapa.chefe == nullptr || mapa.total > MAX_NOS) return false;
     for (const NoMapa* no = mapa.todos; no != nullptr; no = no->proximo) {
@@ -427,12 +442,14 @@ int vivosNoGrupo(const Expedicao& exp) {
     return total;
 }
 
+// Retorno: quantos inimigos do combate atual ainda estão vivos.
 int inimigosVivos(const Expedicao& exp) {
     int total = 0;
     for (int i = 0; i < exp.totalInimigos; i++) total += exp.inimigos[i].vida > 0;
     return total;
 }
 
+// Retorno: "" se o reino pode mandar a expedição, ou o motivo de não poder.
 string podeExplorar(const Reino& reino) {
     if (tamanhoDaEquipe(reino.herois) == 0) return "Precisa de pelo menos um herói na equipe.";
     if (reino.feridos > 0) return "Os heróis estão feridos. Voltam em " + to_string(reino.feridos) + " turno(s).";
@@ -441,6 +458,8 @@ string podeExplorar(const Reino& reino) {
     return "";
 }
 
+// Começa a expedição: paga a comida, leva as poções, monta o grupo e gera o mapa.
+// Retorno: "" se começou, ou o motivo de não ter começado.
 string iniciarExpedicao(Expedicao& exp, Reino& reino, const NoArvore* catalogo, int regiao, int dificuldade) {
     string problema = podeExplorar(reino);
     if (!problema.empty()) return problema;
@@ -462,6 +481,8 @@ string iniciarExpedicao(Expedicao& exp, Reino& reino, const NoArvore* catalogo, 
     return "";
 }
 
+// Anda pelo caminho escolhido e resolve o nó de destino (tesouro, descanso, evento ou luta).
+// Retorno: "" se andou, ou o erro pra mostrar.
 string avancar(Expedicao& exp, int caminho) {
     if (!exp.ativa || exp.fase != EXP_MAPA) return "Agora não dá pra andar.";
     if (caminho < 0 || caminho >= exp.atual->totalCaminhos) return "Esse caminho não existe.";
@@ -505,6 +526,7 @@ static void rezarNoAltar(Expedicao& exp) {
     avisar(exp, "O altar brilhou: +2 de ataque até o fim da expedição.");
 }
 
+// Resolve o evento. opcao 0 = arriscar, qualquer outra = seguir em frente.
 void escolherNoEvento(Expedicao& exp, int opcao) {
     if (exp.fase != EXP_EVENTO) return;
     if (opcao != 0) {
@@ -570,6 +592,8 @@ static bool acaoDoGrupo(Expedicao& exp, int acao, int alvo) {
     }
 }
 
+// Uma rodada de combate: ação do jogador, curas, ataque dos inimigos e checagem de fim.
+// alvo: índice do inimigo escolhido.
 void agirNoCombate(Expedicao& exp, int acao, int alvo) {
     if (exp.fase != EXP_COMBATE) return;
     if (acao < ATACAR || acao > FUGIR) {
@@ -598,6 +622,7 @@ void agirNoCombate(Expedicao& exp, int acao, int alvo) {
     }
 }
 
+// Fecha o aviso e volta pro mapa (ou termina, se o chefe caiu).
 void continuarExpedicao(Expedicao& exp) {
     if (exp.fase != EXP_AVISO) return;
     if (exp.desfecho == CHEFE_VENCIDO) {
@@ -608,6 +633,7 @@ void continuarExpedicao(Expedicao& exp) {
     exp.fase = EXP_MAPA;
 }
 
+// O jogador desiste de seguir e volta com o que já pegou.
 void voltarAoReino(Expedicao& exp) {
     if (exp.fase != EXP_MAPA) return;
     exp.desfecho = VOLTOU;
@@ -615,6 +641,8 @@ void voltarAoReino(Expedicao& exp) {
     exp.mensagem = "O grupo voltou em segurança com o saque.";
 }
 
+// Leva o saque pro reino (ou fere os heróis se perdeu) e libera o mapa.
+// Retorno: o resumo pra mostrar na tela.
 string encerrarExpedicao(Expedicao& exp, Reino& reino) {
     string resumo;
     if (exp.desfecho == DERROTADA) {
