@@ -281,6 +281,7 @@ void desenharTextoSombra(const char* texto, int x, int y, int escala, Color cor)
     desenharDuasCores(texto, x, y, escala, cor, cor);
 }
 
+// Texto de título: contorno grosso em volta, uma sombra embaixo e as duas cores por cima.
 void desenharTextoContorno(const char* texto, int x, int y, int escala,
                            Color cima, Color baixo, Color contorno) {
     for (int dy = -1; dy <= 1; dy++) {

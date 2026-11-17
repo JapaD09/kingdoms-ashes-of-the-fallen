@@ -321,6 +321,8 @@ void desenharArvoreVariada(int x, int y, int tipo, int tamanho, int tom, float b
     }
 }
 
+// Monta o cenário em volta do reino: manchas de grama, bosques e enfeites, fora da área
+// proibida (o planalto). riachoX: onde passa o riacho; semente: o mesmo número dá o mesmo cenário.
 void gerarCenario(Cenario& c, Rectangle proibido, int largura, int altura,
                   float riachoX, unsigned semente) {
     estado = semente;
